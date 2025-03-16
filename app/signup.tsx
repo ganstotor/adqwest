@@ -14,7 +14,7 @@ export default function SignUpScreen() {
     // Например, использование AsyncStorage или другого метода.
 
     // Переход на следующий экран
-    router.replace('/(tabs)'); // После регистрации перекидываем в приложение
+    router.replace('/(driver)/home'); // После регистрации перекидываем в приложение
   };
 
   return (
