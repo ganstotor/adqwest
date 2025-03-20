@@ -25,9 +25,10 @@ const OrdersScreen: React.FC = () => {
           key={order.id}
           style={styles.orderContainer}
           onPress={() => {
-            const path = `/driver/my-orders/${order.id}` as const;
-            console.log("Navigating to:", path);
-            router.push(path);
+            const path = `my-orders/${order.id}`; // Убираем as const
+            console.log("Navigating to:", path );
+            router.push(`/my-orders/${order.id}`);
+            //router.push(path); // Переход по маршруту
           }}
         >
           <Text style={styles.district}>{order.district}</Text>

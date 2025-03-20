@@ -1,9 +1,16 @@
 import React from "react";
 import { View, Text, Image, StyleSheet, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
+import { getAuth } from 'firebase/auth';
+import { auth } from '../../../firebaseConfig';
+
 
 const ProfileScreen = () => {
   const router = useRouter();
+
+  getAuth().onAuthStateChanged((user) => {
+    if (!user) router.replace('/');
+  });
 
   return (
     <View style={styles.container}>
@@ -29,6 +36,11 @@ const ProfileScreen = () => {
         onPress={() => router.push("/(driver)/profile/payments")}
       >
         <Text style={styles.buttonText}>Payments</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.logOut} onPress={() => auth.signOut()}>
+        <Text style={styles.buttonText}>Log out</Text>
       </TouchableOpacity>
     </View>
   );
@@ -65,6 +77,14 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     fontWeight: "600",
+  },
+  logOut: {
+    backgroundColor: '#FF9800', // Оранжевая кнопка
+    padding: 12,
+    borderRadius: 5,
+    width: '80%',
+    alignItems: 'center',
+    marginVertical: 5,
   },
 });
 

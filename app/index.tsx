@@ -6,15 +6,25 @@ import {
   FlatList,
   Dimensions,
   TouchableOpacity,
+  Image,
+  SafeAreaView
 } from "react-native";
 import { useRouter } from "expo-router";
 
 const { width } = Dimensions.get("window");
 
 const slides = [
-  { id: "1", text: "Welcome to our app!" },
-  { id: "2", text: "Enjoy seamless delivery service." },
-  { id: "3", text: "Get started now and explore!" },
+  {
+    id: "1",
+    title: "What is bagR?",
+    text: " bagR transforms gig economy delivery networks into a powerful advertising and product distribution channel. We connect businesses with delivery drivers from platforms like DoorDash, UberEats, and Grubhub—turning every delivery into a branded marketing opportunity.",
+  },
+  {
+    id: "2",
+    title: "How It Works:",
+    text: " Whenever a delivery is made, it arrives in a reusable, high-visibility, eco-friendly, and responsibly-sourced  insulated bag featuring your advertisement or promotional content. Customers engage with your brand the moment they receive their order, creating a direct, tangible marketing touchpoint.",
+  },
+  { id: "3", title: "Get started now and explore!" },
 ];
 
 const WelcomeScreen: React.FC = () => {
@@ -28,8 +38,13 @@ const WelcomeScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+            <Image
+        source={require("@/assets/images/bagr.png")}
+        style={styles.bagrImage}
+      />
       <FlatList
+      
         ref={flatListRef}
         data={slides}
         horizontal
@@ -39,6 +54,7 @@ const WelcomeScreen: React.FC = () => {
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <View style={styles.slide}>
+            <Text style={styles.title}>{item.title}</Text>
             <Text style={styles.text}>{item.text}</Text>
           </View>
         )}
@@ -64,7 +80,7 @@ const WelcomeScreen: React.FC = () => {
       >
         <Text style={styles.buttonText}>Get Started</Text>
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -82,15 +98,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  text: {
+  title: {
     fontSize: 24,
     fontWeight: "bold",
     textAlign: "center",
   },
+  text: {
+    fontSize: 18,
+    width: "70%",
+  },
   indicatorContainer: {
     flexDirection: "row",
     position: "absolute",
-    bottom: 80,
+    bottom: 180,
   },
   indicator: {
     width: 8,
@@ -100,14 +120,14 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   activeIndicator: {
-    backgroundColor: "#007BFF",
+    backgroundColor: "#FF9800",
     width: 10,
     height: 10,
   },
   button: {
     position: "absolute",
-    bottom: 20,
-    backgroundColor: "#007BFF",
+    bottom: 80,
+    backgroundColor: "#FF9800",
     paddingVertical: 12,
     paddingHorizontal: 40,
     borderRadius: 8,
@@ -116,5 +136,12 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 18,
     fontWeight: "bold",
+  },
+  bagrImage: {
+    top: 200,
+    width: 150,
+    height: 150,
+    resizeMode: "contain",
+    borderRadius: 20,
   },
 });

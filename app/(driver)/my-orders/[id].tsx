@@ -2,25 +2,21 @@ import React, { useEffect } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 
-interface Order {
-  district: string;
-  company: string;
-  bags: number;
-}
-
-const orders: Record<string, Order> = {
+// Данные заказов
+const orders: Record<string, { district: string; company: string; bags: number }> = {
   "1": { district: "Manhattan", company: "Empire Logistics", bags: 5 },
   "2": { district: "Brooklyn", company: "Brooklyn Express", bags: 8 },
   "3": { district: "Queens", company: "Queens Cargo", bags: 3 },
 };
 
 const OrderDetailScreen: React.FC = () => {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id } = useLocalSearchParams<{ id: string }>(); // Получаем параметр id из URL
 
   useEffect(() => {
     console.log("Order ID in [id].tsx:", id);
   }, [id]);
 
+  // Если нет id или заказ не найден, выводим ошибку
   if (!id || !orders[id]) {
     return (
       <View style={styles.container}>
@@ -29,7 +25,7 @@ const OrderDetailScreen: React.FC = () => {
     );
   }
 
-  const order = orders[id];
+  const order = orders[id]; // Получаем заказ по id
 
   return (
     <View style={styles.container}>
