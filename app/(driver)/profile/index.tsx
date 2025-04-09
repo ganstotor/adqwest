@@ -33,9 +33,23 @@ const ProfileScreen = () => {
 
       <TouchableOpacity
         style={styles.button}
+        onPress={() => router.push("/(driver)/profile/rewards")}
+      >
+        <Text style={styles.buttonText}>Rewards</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.button}
         onPress={() => router.push("/(driver)/profile/payments")}
       >
-        <Text style={styles.buttonText}>Payments</Text>
+        <Text style={styles.buttonText}>Earnings</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => router.push("/(driver)/profile/statistic")}
+      >
+        <Text style={styles.buttonText}>Statistic</Text>
       </TouchableOpacity>
 
       <TouchableOpacity

@@ -3,6 +3,7 @@ import { initializeApp, FirebaseApp } from "firebase/app";
 //import { getAnalytics, Analytics } from "firebase/analytics";
 import { initializeAuth, getReactNativePersistence, Auth } from "firebase/auth";
 import ReactNativeAsyncStorage from "@react-native-async-storage/async-storage";
+import { getFirestore } from "firebase/firestore";
 
 // Define the Firebase configuration object with proper typing
 const firebaseConfig: Record<string, string> = {
@@ -26,6 +27,9 @@ export const auth: Auth = initializeAuth(app, {
   persistence: getReactNativePersistence(ReactNativeAsyncStorage),
 });
 
+// Initialize Firestore database
+const db = getFirestore(app);
+
 // Export Firebase app and analytics if needed
 //export { app, analytics };
-export { app };
+export { app, db };
