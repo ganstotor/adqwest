@@ -28,7 +28,7 @@ type CampaignDoc = {
 
 type AdDoc = {
   logo: string;
-  company_name: string;
+  companyName: string;
 };
 
 const MainPage: React.FC = () => {
@@ -81,7 +81,7 @@ const MainPage: React.FC = () => {
             return {
               id: docSnap.id,
               logo: adData.logo,
-              companyName: adData.company_name,
+              companyName: adData.companyName,
               states: campaignData.states,
               status: data.status,
             };

@@ -32,7 +32,7 @@ type Campaign = {
 
 type UserAd = {
   logo: string;
-  company_name: string;
+  companyName: string;
 };
 
 const MissionPage = () => {
@@ -61,9 +61,9 @@ const MissionPage = () => {
         const adSnap = await getDoc(userAdId);
         if (!adSnap.exists()) return;
 
-        const { logo, company_name } = adSnap.data() as UserAd;
+        const { logo, companyName } = adSnap.data() as UserAd;
 
-        setCampaignName(company_name || 'Campaign');
+        setCampaignName(companyName || 'Campaign');
         setLogo(logo || '');
 
         // Загружаем миссии
