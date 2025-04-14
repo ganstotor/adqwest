@@ -1,41 +1,86 @@
-// SettingsScreen.js
-
-import React from 'react';
-import { View, Text, TextInput, Button, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TextInput, Button, Image, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import * as ImagePicker from 'expo-image-picker';
+import { db } from '../../../firebaseConfig';
 
 const SettingsScreen = () => {
+  const [name, setName] = useState('');
+  const [avatar, setAvatar] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const auth = getAuth();
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        setUserId(user.uid);
+        const docRef = doc(db, 'users_driver', user.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.name) setName(data.name);
+          if (data.avatar) setAvatar(data.avatar);
+        }
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission denied', 'Permission to access media library is required!');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.5,
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      setAvatar(result.assets[0].uri);
+    }
+  };
+
+  const saveSettings = async () => {
+    if (userId) {
+      const ref = doc(db, 'users_driver', userId);
+      await setDoc(ref, { name, avatar }, { merge: true });
+      Alert.alert('Saved', 'Settings updated successfully');
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Настройки</Text>
+      <Text style={styles.title}>Settings</Text>
 
-      {/* Аватар */}
-      <TouchableOpacity>
-        <View style={styles.avatarPlaceholder}>
-          <Text style={styles.avatarText}>Добавить Аватар</Text>
+      <TouchableOpacity onPress={pickImage}>
+        <View style={styles.avatarWrapper}>
+          {avatar ? (
+            <Image source={{ uri: avatar }} style={styles.avatar} />
+          ) : (
+            <View style={styles.placeholder}>
+              <Text style={styles.placeholderText}>Avatar</Text>
+            </View>
+          )}
         </View>
       </TouchableOpacity>
 
-      {/* Имя */}
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>Имя</Text>
+        <Text style={styles.label}>Name</Text>
         <TextInput
           style={styles.input}
-          placeholder="Введите имя"
+          placeholder="Enter your name"
+          value={name}
+          onChangeText={setName}
         />
       </View>
 
-      {/* Пароль */}
-      <View style={styles.inputContainer}>
-        <Text style={styles.label}>Пароль</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Введите новый пароль"
-          secureTextEntry
-        />
-      </View>
-
-      {/* Кнопка сохранения */}
-      <Button title="Сохранить настройки" onPress={() => {}} />
+      <Button title="Save Settings" onPress={saveSettings} />
     </View>
   );
 };
@@ -43,40 +88,56 @@ const SettingsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
     padding: 20,
+    backgroundColor: '#fff',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 30,
   },
-  avatarPlaceholder: {
-    width: 100,
-    height: 100,
-    backgroundColor: '#ccc',
+  avatarWrapper: {
+    alignSelf: 'center',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 2,
+    borderColor: '#aaa',
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 50,
-    marginBottom: 20,
+    marginBottom: 25,
+    overflow: 'hidden',
   },
-  avatarText: {
-    color: '#fff',
-    fontSize: 12,
+  avatar: {
+    width: '100%',
+    height: '100%',
+  },
+  placeholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#eee',
+  },
+  placeholderText: {
+    color: '#777',
+    fontSize: 16,
   },
   inputContainer: {
     marginBottom: 20,
   },
   label: {
-    fontSize: 16,
     marginBottom: 5,
+    fontSize: 16,
+    fontWeight: '500',
   },
   input: {
     borderWidth: 1,
     borderColor: '#ccc',
+    borderRadius: 8,
     padding: 10,
-    borderRadius: 5,
+    fontSize: 16,
   },
 });
 

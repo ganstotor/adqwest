@@ -1,16 +1,63 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import * as Progress from 'react-native-progress';
 import { Ionicons } from '@expo/vector-icons';
+import { collection, query, where, getDocs, doc } from 'firebase/firestore';
+import { auth, db } from '../../../firebaseConfig';
 
 const RewardsScreen: React.FC = () => {
   const [tooltipVisible, setTooltipVisible] = useState<string | null>(null);
+  const [completedMissions, setCompletedMissions] = useState<number>(0);
+  const [failedMissions, setFailedMissions] = useState<number>(0);
+  const [rank, setRank] = useState<string>('Recruit');
+  const [nextRank, setNextRank] = useState<string>('Sergeant');
+  const [rankImage, setRankImage] = useState<string | null>(null);
 
-  const completedMissions: number = 25;
-  const failedMissions: number = 3;
-  const nextLevelTarget: number = 500;
+  const targetMissions = 500;
 
-  const progress: number = completedMissions / nextLevelTarget;
+  useEffect(() => {
+    const fetchMissions = async () => {
+      const user = auth.currentUser;
+
+      if (!user) return;
+
+      // Получение завершенных миссий
+      const missionsRef = collection(db, "driver_missions");
+      const completedQuery = query(
+        missionsRef,
+        where("userDriverId", "==", doc(db, `users_driver/${user.uid}`)),
+        where("status", "==", "completed")
+      );
+      const completedSnapshot = await getDocs(completedQuery);
+      const completedCount = completedSnapshot.size;
+      setCompletedMissions(completedCount);
+
+      // Получение неудачных миссий
+      const failedQuery = query(
+        missionsRef,
+        where("userDriverId", "==", doc(db, `users_driver/${user.uid}`)),
+        where("status", "==", "failed")
+      );
+      const failedSnapshot = await getDocs(failedQuery);
+      const failedCount = failedSnapshot.size;
+      setFailedMissions(failedCount);
+
+      // Определяем ранг и картинку по количеству выполненных миссий
+      if (completedCount >= 500) {
+        setRank("Sergeant");
+        setNextRank("Master");
+        setRankImage('https://49f19303af27fa52649830f7470cda8c.cdn.bubble.io/f1744632963112x260922741835636360/chevron.png'); // Картинка для Sergeant
+      } else {
+        setRank("Recruit");
+        setNextRank("Sergeant");
+        setRankImage('https://49f19303af27fa52649830f7470cda8c.cdn.bubble.io/f1744632932783x563948893933595460/recruit.png'); // Картинка для Recruit
+      }
+    };
+
+    fetchMissions();
+  }, []);
+
+  const progress = completedMissions / targetMissions;
 
   const toggleTooltip = (key: string): void => {
     setTooltipVisible(tooltipVisible === key ? null : key);
@@ -21,18 +68,19 @@ const RewardsScreen: React.FC = () => {
       <Text style={styles.title}>Your current rank is:</Text>
 
       <View style={styles.rankRow}>
-        <Text style={styles.rank}>Recruit</Text>
-        <TouchableOpacity onPress={() => toggleTooltip('recruit')}>
-          <Ionicons name="help-circle-outline" size={20} color="#888" />
-        </TouchableOpacity>
+        <Text style={styles.rank}>{rank}</Text>
       </View>
 
-      {tooltipVisible === 'recruit' && (
+      {rankImage && (
+        <Image source={{ uri: rankImage }} style={styles.rankImage} />
+      )}
+
+      {tooltipVisible === rank && (
         <View style={styles.tooltip}>
           <Text style={styles.tooltipText}>
-            You are on probation period.{"\n"}
-            Your current supply limit is 50 bags.{"\n"}
-            You may not order a new supply shipment until you have completed your current operation.
+            {rank === 'Recruit'
+              ? 'You are on probation period. Your current supply limit is 50 bags.'
+              : 'Requirements: No more than 10 failed missions in the last 100 missions. Bag Limit: Increased to 100 bags.'}
           </Text>
         </View>
       )}
@@ -40,25 +88,22 @@ const RewardsScreen: React.FC = () => {
       <Text style={styles.subTitle}>Your progress to the next rank:</Text>
 
       <View style={styles.rankRow}>
-        <Text style={styles.rank}>Sergeant</Text>
-        <TouchableOpacity onPress={() => toggleTooltip('sergeant')}>
-          <Ionicons name="help-circle-outline" size={20} color="#888" />
-        </TouchableOpacity>
+        <Text style={styles.rank}>{nextRank}</Text>
       </View>
 
-      {tooltipVisible === 'sergeant' && (
+      {tooltipVisible === nextRank && (
         <View style={styles.tooltip}>
           <Text style={styles.tooltipText}>
-            Requirements: No more than 10 failed missions in the last 100 missions.{"\n"}
-            Bag Limit: Increased to 100 bags.{"\n"}
-            Perks: Can order more bags before completing the current operation.
+            {nextRank === 'Sergeant'
+              ? 'Requirements: No more than 10 failed missions in the last 100 missions. Bag Limit: Increased to 100 bags.'
+              : 'Master rank requires 1000 completed missions.'}
           </Text>
         </View>
       )}
 
       <View style={styles.progressInfo}>
         <Text style={styles.completedText}>
-          Completed missions: {completedMissions}
+          Completed missions: {completedMissions}/{targetMissions}
         </Text>
       </View>
 
@@ -86,22 +131,34 @@ const styles = StyleSheet.create({
     fontSize: 22,
     marginBottom: 10,
     fontWeight: 'bold',
+    textAlign: 'center', // Центрируем заголовок
   },
   subTitle: {
     fontSize: 18,
     marginTop: 30,
     marginBottom: 10,
     fontWeight: '500',
+    textAlign: 'center', // Центрируем подзаголовок
   },
   rankRow: {
     flexDirection: 'row',
+    justifyContent: 'center', // Центрируем текст
     alignItems: 'center',
     marginBottom: 5,
   },
   rank: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '600',
     marginRight: 5,
+    textAlign: 'center', // Центрируем ранг
+  },
+  rankImage: {
+    width: 100,  // Сделаем картинку больше
+    height: 100, // Сделаем картинку больше
+    marginTop: 10,
+    marginBottom: 20,
+    resizeMode: 'contain', // Для корректного отображения картинок
+    alignSelf: 'center', // Центрируем картинку
   },
   tooltip: {
     backgroundColor: '#eee',
@@ -116,7 +173,7 @@ const styles = StyleSheet.create({
   },
   progressInfo: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center', // Центрируем информацию
     marginBottom: 10,
     marginTop: 20,
   },
@@ -129,6 +186,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: 20,
     color: '#d32f2f',
+    textAlign: 'center', // Центрируем "Failed missions"
   },
 });
 
