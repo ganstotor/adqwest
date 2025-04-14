@@ -9,7 +9,7 @@ import * as Location from 'expo-location';
 
 // Функция для получения координат по ZIP коду с использованием Google Geocoding API
 const getCoordinatesForZip = async (zipCode: string) => {
-  const apiKey = 'AIzaSyAKzJHmT9Mxs2G6voDa-';  // Замените на ваш API ключ Google
+  const apiKey = '';  // Замените на ваш API ключ Google
   const response = await fetch(
     `https://maps.googleapis.com/maps/api/geocode/json?address=${zipCode}&key=${apiKey}`
   );
