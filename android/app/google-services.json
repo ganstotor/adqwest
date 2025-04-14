@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "529539787830",
+    "firebase_url": "https://bagr-4ed70-default-rtdb.firebaseio.com",
+    "project_id": "bagr-4ed70",
+    "storage_bucket": "bagr-4ed70.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:529539787830:android:46f25751038b30caf87c97",
+        "android_client_info": {
+          "package_name": "com.anonymous.bagr"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "529539787830-p1dsca1elbohjicg6ccnq8f6t6gqg2h4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBd2PK--YIialDMA_M1Vw4bBQis4L0O8Ks"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "529539787830-p1dsca1elbohjicg6ccnq8f6t6gqg2h4.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

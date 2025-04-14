@@ -102,13 +102,24 @@ const MissionPage = () => {
 
   const renderMission = ({ item }: { item: DriverMission }) => (
     <View style={styles.missionCard}>
-      <Text style={styles.missionText}>
-        📍 From: {item.startMission.latitude.toFixed(4)}, {item.startMission.longitude.toFixed(4)}
-      </Text>
-      <Text style={styles.missionText}>
-        🎯 To: {item.endMission.latitude.toFixed(4)}, {item.endMission.longitude.toFixed(4)}
-      </Text>
+      {item.startMission ? (
+        <Text style={styles.missionText}>
+          📍 From: {item.startMission.latitude.toFixed(4)}, {item.startMission.longitude.toFixed(4)}
+        </Text>
+      ) : (
+        <Text style={styles.missionText}>📍 From: Unknown location</Text>
+      )}
+  
+      {item.endMission ? (
+        <Text style={styles.missionText}>
+          🎯 To: {item.endMission.latitude.toFixed(4)}, {item.endMission.longitude.toFixed(4)}
+        </Text>
+      ) : (
+        <Text style={styles.missionText}>🎯 To: Unknown location</Text>
+      )}
+  
       <Text style={styles.missionText}>👤 Recipient: {item.recipientName}</Text>
+  
       {item.status === 'active' ? (
         <TouchableOpacity
           style={styles.completeButton}
@@ -123,7 +134,7 @@ const MissionPage = () => {
       )}
     </View>
   );
-
+  
   return (
     <View style={styles.container}>
       <View style={styles.header}>

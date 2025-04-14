@@ -7,147 +7,86 @@ import {
   StyleSheet,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { auth } from "../firebaseConfig";
-import { PhoneAuthProvider, signInWithCredential, createUserWithEmailAndPassword } from "firebase/auth";
+import { auth, db } from "../firebaseConfig";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
 
-import * as Google from "expo-auth-session/providers/google";
-import PhoneInput from "react-native-phone-number-input";
-
-export default function SignUpScreen() {
-  const [tab, setTab] = useState<"phone" | "email">("phone");
+export default function AuthScreen() {
+  const [mode, setMode] = useState<"login" | "signup">("signup");
   const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [verificationCode, setVerificationCode] = useState("");
-  const [formattedPhone, setFormattedPhone] = useState("");
-  const [confirm, setConfirm] = useState<any>(null);
   const router = useRouter();
 
-  // Google Auth
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: "YOUR_GOOGLE_CLIENT_ID", // Замените на свой
-  });
-
-  const signUp = async () => {
+  const handleAuth = async () => {
     try {
-      if (tab === "email") {
-        // Email registration
+      if (mode === "signup") {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        if (userCredential) router.replace("/(driver)/home");
-      } else {
-        // Phone authentication
-        if (confirm) {
-          const credential = PhoneAuthProvider.credential(confirm.verificationId, verificationCode);
-          const userCredential = await signInWithCredential(auth, credential);
-          if (userCredential) router.replace("/(driver)/home");
-        } else {
-          alert("Please enter the verification code.");
-        }
-      }
-    } catch (error: any) {
-      console.log(error);
-      alert("Sign up failed: " + error.message);
-    }
-  };
+        const user = userCredential.user;
 
-  const sendVerificationCode = async () => {
-    const phoneProvider = new PhoneAuthProvider(auth);
-    try {
-      const verificationId = await phoneProvider.verifyPhoneNumber(
-        formattedPhone
-      );
-      setConfirm({ verificationId });
+        const userDocRef = doc(db, "users_driver", user.uid);
+        await setDoc(userDocRef, {
+          email: user.email,
+          name: name,
+        });
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+      }
+
+      router.replace("/(driver)/home");
     } catch (error: any) {
-      console.log("Phone verification failed:", error);
-      alert("Verification failed: " + error.message);
+      alert(`${mode === "signup" ? "Sign up" : "Sign in"} failed: ${error.message}`);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Driver Sign Up</Text>
+      <Text style={styles.title}>{mode === "signup" ? "Sign Up" : "Login"}</Text>
 
-      {/* Tabs */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, tab === "phone" && styles.activeTab]}
-          onPress={() => setTab("phone")}
-        >
-          <Text style={styles.tabText}>Phone</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, tab === "email" && styles.activeTab]}
-          onPress={() => setTab("email")}
-        >
-          <Text style={styles.tabText}>Email</Text>
-        </TouchableOpacity>
-      </View>
-
+      {mode === "signup" && (
+        <TextInput
+          placeholder="Full Name"
+          value={name}
+          onChangeText={setName}
+          style={styles.input}
+        />
+      )}
       <TextInput
-        placeholder="Full Name"
-        value={name}
-        onChangeText={setName}
+        placeholder="Email"
+        value={email}
+        onChangeText={setEmail}
+        keyboardType="email-address"
+        style={styles.input}
+      />
+      <TextInput
+        placeholder="Password"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
         style={styles.input}
       />
 
-      {tab === "phone" ? (
-        <>
-          <PhoneInput
-            defaultValue={phone}
-            defaultCode="US"
-            layout="first"
-            onChangeText={setPhone}
-            onChangeFormattedText={setFormattedPhone}
-            containerStyle={styles.phoneInput}
-            textContainerStyle={{ paddingVertical: 0 }}
-          />
-          <TouchableOpacity style={styles.signupButton} onPress={sendVerificationCode}>
-            <Text style={styles.buttonText}>Send Verification Code</Text>
-          </TouchableOpacity>
-          <TextInput
-            placeholder="Enter Verification Code"
-            value={verificationCode}
-            onChangeText={setVerificationCode}
-            keyboardType="number-pad"
-            style={styles.input}
-          />
-        </>
-      ) : (
-        <>
-          <TextInput
-            placeholder="Email"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            style={styles.input}
-          />
-          <TextInput
-            placeholder="Create Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            style={styles.input}
-          />
-        </>
-      )}
-
-      <TouchableOpacity style={styles.signupButton} onPress={signUp}>
-        <Text style={styles.buttonText}>Create Account</Text>
+      <TouchableOpacity style={styles.authButton} onPress={handleAuth}>
+        <Text style={styles.buttonText}>
+          {mode === "signup" ? "Create Account" : "Login"}
+        </Text>
       </TouchableOpacity>
 
-      <Text style={styles.orText}>or</Text>
-
-      <TouchableOpacity style={styles.googleButton} onPress={() => promptAsync()}>
-        <Text style={styles.buttonText}>Sign in with Google</Text>
-      </TouchableOpacity>
-
-      <Text style={styles.loginText}>
-        If you have an account,
-        <Text style={styles.loginLink} onPress={() => router.push("/login")}>
-          {" "}Login
+      <Text style={styles.switchText}>
+        {mode === "signup" ? "Already have an account?" : "Don't have an account?"}{" "}
+        <Text
+          style={styles.switchLink}
+          onPress={() => setMode(mode === "signup" ? "login" : "signup")}
+        >
+          {mode === "signup" ? "Login" : "Sign Up"}
         </Text>
       </Text>
+
+      <View style={styles.dividerContainer}>
+        <View style={styles.line} />
+        <Text style={styles.dividerText}>or</Text>
+        <View style={styles.line} />
+      </View>
     </View>
   );
 }
@@ -164,22 +103,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 20,
   },
-  tabContainer: {
-    flexDirection: "row",
-    marginBottom: 15,
-  },
-  tab: {
-    padding: 10,
-    marginHorizontal: 5,
-    borderBottomWidth: 2,
-    borderColor: "transparent",
-  },
-  activeTab: {
-    borderColor: "#FF9800",
-  },
-  tabText: {
-    fontSize: 16,
-  },
   input: {
     width: "100%",
     borderWidth: 1,
@@ -188,23 +111,8 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     marginBottom: 10,
   },
-  phoneInput: {
-    width: "100%",
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 5,
-    marginBottom: 10,
-  },
-  signupButton: {
+  authButton: {
     backgroundColor: "#FF9800",
-    padding: 12,
-    borderRadius: 5,
-    width: "100%",
-    alignItems: "center",
-    marginVertical: 5,
-  },
-  googleButton: {
-    backgroundColor: "#DB4437",
     padding: 12,
     borderRadius: 5,
     width: "100%",
@@ -215,15 +123,27 @@ const styles = StyleSheet.create({
     color: "white",
     fontWeight: "bold",
   },
-  orText: {
-    marginVertical: 10,
-  },
-  loginText: {
+  switchText: {
     marginTop: 15,
     fontSize: 16,
   },
-  loginLink: {
+  switchLink: {
     fontWeight: "bold",
     color: "#007AFF",
+  },
+  dividerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 15,
+    width: "100%",
+  },
+  line: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#ccc",
+  },
+  dividerText: {
+    marginHorizontal: 10,
+    color: "#777",
   },
 });

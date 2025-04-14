@@ -3,10 +3,13 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../firebaseConfig';
+import { getAuth } from 'firebase/auth';
 
 const QRScanScreen: React.FC = () => {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
+  const auth = getAuth();
+  const user = auth.currentUser;
 
   useEffect(() => {
     if (!permission) {
@@ -19,12 +22,25 @@ const QRScanScreen: React.FC = () => {
     setScanned(true);
 
     try {
-      const campaignRef = doc(db, 'driver_campaigns', data);
-      await updateDoc(campaignRef, { status: 'Active' });
-      Alert.alert('Success', `Driver campaign ${data} is now Active`);
+      if (data.startsWith('REASSIGN_')) {
+        const campaignId = data.replace('REASSIGN_', '');
+        const campaignRef = doc(db, 'driver_campaigns', campaignId);
+        await updateDoc(campaignRef, {
+          userId: user?.uid || null,
+          reassignedAt: new Date(),
+        });
+        Alert.alert('Success', `Campaign ${campaignId} reassigned to you`);
+      } else {
+        const campaignRef = doc(db, 'driver_campaigns', data);
+        await updateDoc(campaignRef, {
+          status: 'Active',
+          activatedAt: new Date(),
+        });
+        Alert.alert('Success', `Driver campaign ${data} is now Active`);
+      }
     } catch (error) {
       console.error(error);
-      Alert.alert('Error', 'Failed to activate campaign');
+      Alert.alert('Error', 'Failed to process QR code');
     }
   };
 
@@ -34,7 +50,9 @@ const QRScanScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Please scan QR Code on the bag to activate your campaign.</Text>
+      <Text style={styles.title}>
+        Scan the QR code on the bag to activate or receive a campaign
+      </Text>
 
       <View style={styles.scannerBox}>
         <CameraView

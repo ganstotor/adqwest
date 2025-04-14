@@ -5,9 +5,10 @@ export default function OrdersLayout() {
     <Stack>
       <Stack.Screen name="index" options={{ title: "Campaigns" }} />
       <Stack.Screen name="scan-case" options={{ title: "Scan Case" }} />
-      <Stack.Screen name="order-bags" options={{ title: "Order Bags" }} />
+      <Stack.Screen name="available-campaigns" options={{ title: "Available Campaigns" }} />
       <Stack.Screen name="missions" options={{ title: "Missions" }} />
       <Stack.Screen name="complete-drop" options={{ title: "Complete Drop" }} />
+      <Stack.Screen name="order-bags" options={{ title: "Order Bags" }} />
     </Stack>
   );
 }
