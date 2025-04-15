@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { doc, getDoc, addDoc, collection, GeoPoint, DocumentReference } from 'firebase/firestore';
 import { db } from '../../../firebaseConfig';
 import * as Location from 'expo-location';
+import { getAuth } from 'firebase/auth';
 
 const ScanBagScreen: React.FC = () => {
   const router = useRouter();
@@ -40,7 +41,7 @@ const ScanBagScreen: React.FC = () => {
     const scannedId = data.trim();
 
     if (campaignRef.id === scannedId) {
-      setShowInputs(true);
+      setShowInputs(true); // Показываем поля ввода и скрываем QR-сканер
     } else {
       Alert.alert('Invalid Bag', 'This bag does not match your campaign.');
     }
@@ -58,6 +59,16 @@ const ScanBagScreen: React.FC = () => {
     const { coords } = await Location.getCurrentPositionAsync({});
     const geoPoint = new GeoPoint(coords.latitude, coords.longitude);
 
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+
+    if (!currentUser) {
+      Alert.alert('User not authenticated');
+      return;
+    }
+
+    const userDriverRef = doc(db, 'users_driver', currentUser.uid);
+
     await addDoc(collection(db, 'driver_missions'), {
       campaignId: campaignRef,
       driverCampaignId: driverCampaignRef,
@@ -65,6 +76,7 @@ const ScanBagScreen: React.FC = () => {
       recipientName: recipientName.trim(),
       status: 'active',
       startLocationName: geoLocationName.trim(),
+      userDriverId: userDriverRef,
     });
 
     router.push({ pathname: '/drops/missions', params: { driverCampaignId } });
@@ -78,13 +90,15 @@ const ScanBagScreen: React.FC = () => {
     <View style={styles.container}>
       <Text style={styles.title}>Please scan your bag to start mission</Text>
 
-      <View style={styles.scannerBox}>
-        <CameraView
-          style={StyleSheet.absoluteFillObject}
-          barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-          onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
-        />
-      </View>
+      {!showInputs && (
+        <View style={styles.scannerBox}>
+          <CameraView
+            style={StyleSheet.absoluteFillObject}
+            barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+            onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+          />
+        </View>
+      )}
 
       {showInputs && (
         <>

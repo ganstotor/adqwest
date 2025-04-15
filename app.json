@@ -17,7 +17,7 @@
         "foregroundImage": "./assets/images/bagr.png",
         "backgroundColor": "#ffffff",
         "googleServicesFile": "./google-services.json",
-        "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+        "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION", "INTERNET", "READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE"]
       },
       "package": "com.anonymous.bagr"
     },
