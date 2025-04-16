@@ -63,8 +63,11 @@ const MissionPage = () => {
 
         const { logo, companyName } = adSnap.data() as UserAd;
 
+        // Проверяем и добавляем https:// к логотипу, если его нет
+        const safeLogoUrl = logo?.startsWith('//') ? `https:${logo}` : logo;
+
         setCampaignName(companyName || 'Campaign');
-        setLogo(logo || '');
+        setLogo(safeLogoUrl || '');
 
         // Загружаем миссии
         const q = query(
@@ -109,7 +112,7 @@ const MissionPage = () => {
       ) : (
         <Text style={styles.missionText}>📍 From: Unknown location</Text>
       )}
-  
+
       {item.endMission ? (
         <Text style={styles.missionText}>
           🎯 To: {item.endMission.latitude.toFixed(4)}, {item.endMission.longitude.toFixed(4)}
@@ -117,9 +120,9 @@ const MissionPage = () => {
       ) : (
         <Text style={styles.missionText}>🎯 To: Unknown location</Text>
       )}
-  
+
       <Text style={styles.missionText}>👤 Recipient: {item.recipientName}</Text>
-  
+
       {item.status === 'active' ? (
         <TouchableOpacity
           style={styles.completeButton}
@@ -134,7 +137,7 @@ const MissionPage = () => {
       )}
     </View>
   );
-  
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>

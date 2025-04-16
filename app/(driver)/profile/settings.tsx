@@ -42,7 +42,38 @@ const SettingsScreen = () => {
     });
 
     if (!result.canceled && result.assets.length > 0) {
-      setAvatar(result.assets[0].uri);
+      const localUri = result.assets[0].uri;
+
+      try {
+        const formData = new FormData();
+        formData.append('file', {
+          uri: localUri,
+          name: 'avatar.jpg',
+          type: 'image/jpeg',
+        } as any);
+        formData.append('upload_preset', 'drop_photos');
+
+        const uploadResponse = await fetch(
+          'https://api.cloudinary.com/v1_1/dae8c4cok/image/upload',
+          {
+            method: 'POST',
+            body: formData,
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          }
+        );
+
+        const uploadData = await uploadResponse.json();
+        if (uploadData.secure_url) {
+          setAvatar(uploadData.secure_url);
+        } else {
+          throw new Error('Upload failed');
+        }
+      } catch (error) {
+        console.error('Cloudinary upload error:', error);
+        Alert.alert('Upload error', 'Could not upload avatar. Please try again.');
+      }
     }
   };
 

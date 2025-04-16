@@ -26,77 +26,79 @@ const OrderBagsScreen = () => {
   const router = useRouter();
 
   useEffect(() => {
+    interface UserAdData {
+      companyName: string | null;
+      logo: string | null;
+    }
+    
     const fetchData = async () => {
       try {
         const userId = auth.currentUser?.uid;
         if (!userId) return;
-
-        // 1. Получаем zipCodes пользователя
+    
+        // Получаем zipCodes пользователя
         const userSnap = await getDoc(doc(db, "users_driver", userId));
-        const userZipCodes: string[] = userSnap.data()?.zipCodes || [];
-
-        // 2. Получаем штаты и сопоставляем zip -> state
-        const statesSnap = await getDocs(collection(db, "states"));
-        const zipToStateMap = new Set<string>();
-
-        for (const zip of userZipCodes) {
-          const zipNum = Number(zip);
-
-          for (const stateDoc of statesSnap.docs) {
-            const stateId = stateDoc.id;
-            const zipRanges = stateDoc.data()?.zipRanges || [];
-
-            for (const range of zipRanges) {
-              const fromNum = Number(range.from);
-              const toNum = Number(range.to);
-              const inRange = zipNum >= fromNum && zipNum <= toNum;
-
-              if (inRange) {
-                zipToStateMap.add(stateId);
-                break;
-              }
-            }
-          }
+        const zipCodeObjects: { key: string; state: string }[] = userSnap.data()?.zipCodes || [];
+    
+        const userStates = new Set<string>();
+        const userZipStrings = new Set<string>();
+    
+        for (const zip of zipCodeObjects) {
+          if (zip.state) userStates.add(zip.state);
+          if (zip.key) userZipStrings.add(zip.key);
         }
-
-        // 3. Получаем кампании и фильтруем
+    
+        // Получаем кампании и фильтруем
         const campaignsSnap = await getDocs(collection(db, "campaigns"));
         const filtered: any[] = [];
-
+    
         for (const campaignDoc of campaignsSnap.docs) {
           const data = campaignDoc.data();
+    
           const matchesNation = data.nation === true;
           const matchesZip = data.zipCodes?.some((zip: string) =>
-            userZipCodes.includes(zip)
+            userZipStrings.has(zip)
           );
           const matchesState = data.states?.some((state: string) =>
-            zipToStateMap.has(state)
+            userStates.has(state)
           );
-
+    
           if (matchesNation || matchesZip || matchesState) {
             const campaignId = campaignDoc.id;
             let companyName = null;
             let logo = null;
-
+    
             const userAdRef = data.userAdId;
             if (userAdRef) {
-              const userAdPath = userAdRef.path; // /users_ad/XYZ
-              const userAdSnap = await getDoc(doc(db, userAdPath));
-              const userAdData = userAdSnap.data();
-              companyName = userAdData?.companyName || null;
-              logo = userAdData?.logo || null;
+              // Получаем документ по ссылке
+              const userAdSnap = await getDoc(userAdRef); // Используем ссылку, а не только ID
+              if (userAdSnap.exists()) {
+                const userAdData = userAdSnap.data() as UserAdData; // Явное указание типа данных
+                companyName = userAdData?.companyName || null;
+                logo = userAdData?.logo || null;
+                
+                // Проверка и корректировка пути к логотипу
+                if (logo && logo.startsWith("//")) {
+                  logo = "https:" + logo; // Добавление https:// если это необходимо
+                }
+              }
             }
-
+    
+            // Выводим данные для проверки в консоль
+            console.log("Campaign Data:", data);
+            console.log("Company Name:", companyName);
+            console.log("Logo URL:", logo);
+    
             filtered.push({
               id: campaignId,
               ...data,
               companyName,
               logo,
-              userAdId: userAdRef?.id, // <-- преобразуем ссылку в строку
+              userAdId: userAdRef?.id,
             });
           }
         }
-
+    
         setCampaigns(filtered);
       } catch (error) {
         console.error("Error fetching campaigns:", error);
@@ -104,9 +106,10 @@ const OrderBagsScreen = () => {
         setLoading(false);
       }
     };
-
+  
     fetchData();
   }, []);
+  
 
   if (loading) {
     return (
@@ -121,7 +124,7 @@ const OrderBagsScreen = () => {
   };
 
   return (
-    <View style={{ padding: 20 }} >
+    <View style={{ padding: 20 }}>
       {campaigns.length > 0 ? (
         <>
           <Text style={{ fontSize: 20, fontWeight: "bold", marginBottom: 10 }}>

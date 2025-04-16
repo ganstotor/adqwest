@@ -35,7 +35,6 @@ export default function OrderBags() {
   const router = useRouter();
 
   useEffect(() => {
-    
     if (!campaignId || !userAdId) {
       console.error("Missing campaignId or userAdId");
       return;
@@ -47,7 +46,11 @@ export default function OrderBags() {
       // Fetching user ad data
       const userAdSnap = await getDoc(doc(db, "users_ad", String(userAdId)));
       const userAd = userAdSnap.data();
-      setLogo(userAd?.logo || null);
+      const rawLogo = userAd?.logo || null;
+      const fullLogo = rawLogo?.startsWith("http")
+        ? rawLogo
+        : `https:${rawLogo}`;
+      setLogo(fullLogo);
       setCompanyName(userAd?.companyName || null);
 
       // Fetching campaign data
@@ -104,7 +107,9 @@ export default function OrderBags() {
       {area && <Text style={{ marginVertical: 5 }}>{area}</Text>}
 
       {/* Choose bags */}
-      <Text style={{ marginTop: 20 }}>Choose the amount of bags to deliver:</Text>
+      <Text style={{ marginTop: 20 }}>
+        Choose the amount of bags to deliver:
+      </Text>
       <View style={{ flexDirection: "row", marginVertical: 10, gap: 10 }}>
         {[25, 50].map((num) => (
           <TouchableOpacity

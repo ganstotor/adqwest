@@ -88,7 +88,7 @@ const DriverCampaignScreen: React.FC = () => {
         }
 
         setData({
-          logo: adData.logo,
+          logo: adData.logo?.startsWith("http") ? adData.logo : `https:${adData.logo}`,
           companyName: adData.companyName,
           area,
           bagsCount: driverCampaignData.bagsCount,

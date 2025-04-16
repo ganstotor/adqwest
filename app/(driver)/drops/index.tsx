@@ -87,7 +87,7 @@ const MainPage: React.FC = () => {
 
             return {
               id: docSnap.id,
-              logo: adData.logo,
+              logo: adData.logo?.startsWith("http") ? adData.logo : `https:${adData.logo}`,
               companyName: adData.companyName,
               states: campaignData.states,
               status: data.status,
