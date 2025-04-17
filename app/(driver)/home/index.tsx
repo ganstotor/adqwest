@@ -1,155 +1,181 @@
 import React, { useEffect, useState } from "react";
 import {
   View,
+  Text,
   TextInput,
   Button,
-  FlatList,
-  Text,
   TouchableOpacity,
   StyleSheet,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
-import { onAuthStateChanged, User } from "firebase/auth"; // Импортируем User
+import { onAuthStateChanged, User } from "firebase/auth";
 import { doc, setDoc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "../../../firebaseConfig";
+import MapView, { Polygon, Marker } from "react-native-maps";
 import Icon from "react-native-vector-icons/Ionicons";
-import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 
-// Функция для получения координат по ZIP коду с использованием Google Geocoding API
-
-const getCoordinatesForZip = async (zipCode: string) => {
-  try {
-    const apiKey = 'AIzaSyA5UXUS08_8p53tKR1TkezDopRo4v_sey8';
-    const response = await fetch(
-      `https://maps.googleapis.com/maps/api/geocode/json?components=postal_code:${zipCode}&key=${apiKey}`
-    );
-    const data = await response.json();
-    console.log("data", data);
-
-    if (data.status !== 'OK') {
-      console.warn('Geocoding API status:', data.status);
-      return null;
-    }
-
-    if (data.results.length > 0) {
-      const location = data.results[0].geometry.location;
-
-      const addressComponents = data.results[0].address_components;
-      const stateComponent = addressComponents.find((component: any) =>
-        component.types.includes('administrative_area_level_1')
-      );
-
-      const state = stateComponent ? stateComponent.short_name : null;
-
-      return {
-        latitude: location.lat,
-        longitude: location.lng,
-        state,
-      };
-    }
-
-    return null;
-  } catch (error) {
-    console.error('Geocoding error:', error);
-    return null;
-  }
+type GeoFeature = {
+  type: string;
+  properties: {
+    ZCTA5CE10: string;
+  };
+  geometry: {
+    type: string;
+    coordinates: number[][][] | number[][][][];
+  };
 };
-
 
 type ZipListItem = {
   key: string;
-  latitude: number;
-  longitude: number;
-  state: string | null;
+  state: string;
 };
 
-const ZipSelectorScreen = () => {
+const haversineDistance = (
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number => {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+export default function ZipMapScreen() {
+  const [features, setFeatures] = useState<GeoFeature[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
+  const [savedZips, setSavedZips] = useState<ZipListItem[]>([]);
   const [zipInput, setZipInput] = useState("");
-  const [zipCodes, setZipCodes] = useState<ZipListItem[]>([]);
-  const [user, setUser] = useState<User | null>(null); // Обновленный тип
-  const [region, setRegion] = useState<any>(null);
+  const [currentLocation, setCurrentLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+
+  const radius = 10;
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user); // Используем правильный тип
-    });
+    const unsubscribe = onAuthStateChanged(auth, (u) => setUser(u));
     return unsubscribe;
   }, []);
 
   useEffect(() => {
     if (!user) return;
     const ref = doc(db, "users_driver", user.uid);
-    const unsubscribe = onSnapshot(ref, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
+    const unsubscribe = onSnapshot(ref, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
         if (Array.isArray(data.zipCodes)) {
-          setZipCodes(data.zipCodes);
+          setSavedZips(data.zipCodes);
         }
       }
     });
     return unsubscribe;
   }, [user]);
 
-  // Получение текущего местоположения
   useEffect(() => {
     const fetchLocation = async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
+      let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") return;
 
-      const loc = await Location.getCurrentPositionAsync({});
-      setRegion({
-        latitude: loc.coords.latitude,
-        longitude: loc.coords.longitude,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
+      let location = await Location.getCurrentPositionAsync({});
+      setCurrentLocation({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
       });
     };
+
     fetchLocation();
   }, []);
 
-  // Добавление нового ZIP кода и его координат
-  const addZip = async (zip: string) => {
-    if (!zip || zip.length < 3 || zipCodes.some((item) => item.key === zip)) return;
-  
-    const coordinates = await getCoordinatesForZip(zip);
-  
-    if (coordinates) {
-      const newZip = {
-        key: zip,
-        latitude: coordinates.latitude,
-        longitude: coordinates.longitude,
-        state: coordinates.state,
-      };
-      const updatedZipCodes = [...zipCodes, newZip];
-      setZipCodes(updatedZipCodes);
-  
-      if (user) {
-        const ref = doc(db, 'users_driver', user.uid);
-        await setDoc(ref, { zipCodes: updatedZipCodes }, { merge: true });
+  useEffect(() => {
+    const fetchGeoJSON = async () => {
+      try {
+        const res = await fetch(
+          "https://raw.githubusercontent.com/OpenDataDE/State-zip-code-GeoJSON/master/oh_ohio_zip_codes_geo.min.json"
+        );
+        const geo = await res.json();
+
+        if (!currentLocation) return;
+
+        const filtered = geo.features.filter((f: GeoFeature) => {
+          const { geometry } = f;
+          let polygons =
+            geometry.type === "Polygon"
+              ? (geometry.coordinates as number[][][])
+              : (geometry.coordinates as number[][][][]).flat();
+
+          return polygons.some((polygon) =>
+            polygon.some(([lng, lat]) => {
+              const dist = haversineDistance(
+                currentLocation.latitude,
+                currentLocation.longitude,
+                lat,
+                lng
+              );
+              return dist <= radius;
+            })
+          );
+        });
+
+        setFeatures(filtered);
+      } catch (err) {
+        console.error("GeoJSON error:", err);
+      } finally {
+        setLoading(false);
       }
-    } else {
-      alert('Failed to find coordinates for this ZIP code.');
+    };
+
+    if (currentLocation) {
+      fetchGeoJSON();
     }
-  
-    setZipInput('');
-  };
-  
+  }, [currentLocation]);
 
-  // Удаление ZIP кода
-  const removeZip = async (zip: string) => {
-    const updatedZipCodes = zipCodes.filter((z) => z.key !== zip);
-    setZipCodes(updatedZipCodes);
-
+  const updateFirestoreZips = async (updated: ZipListItem[]) => {
     if (user) {
       const ref = doc(db, "users_driver", user.uid);
-      await setDoc(ref, { zipCodes: updatedZipCodes }, { merge: true });
+      await setDoc(ref, { zipCodes: updated }, { merge: true });
     }
+  };
+
+  const handleAddZip = async () => {
+    const zip = zipInput.trim();
+    if (!zip || zip.length < 3 || savedZips.some((z) => z.key === zip)) return;
+    const updated = [...savedZips, { key: zip, state: "OH" }];
+    setSavedZips(updated);
+    setZipInput("");
+    updateFirestoreZips(updated);
+  };
+
+  const handleRemoveZip = async (zip: string) => {
+    const updated = savedZips.filter((z) => z.key !== zip);
+    setSavedZips(updated);
+    updateFirestoreZips(updated);
+  };
+
+  const toggleZipFromMap = async (zip: string) => {
+    const exists = savedZips.some((z) => z.key === zip);
+    const updated = exists
+      ? savedZips.filter((z) => z.key !== zip)
+      : [...savedZips, { key: zip, state: "OH" }];
+    setSavedZips(updated);
+    updateFirestoreZips(updated);
   };
 
   return (
     <View style={styles.container}>
-      <View style={styles.inputContainer}>
+      <View style={styles.inputRow}>
         <TextInput
           style={styles.input}
           placeholder="Enter ZIP"
@@ -157,68 +183,106 @@ const ZipSelectorScreen = () => {
           onChangeText={setZipInput}
           keyboardType="numeric"
         />
-        <Button title="Add" onPress={() => addZip(zipInput)} />
+        <Button title="Add" onPress={handleAddZip} />
       </View>
 
-      <FlatList
-        data={zipCodes}
-        keyExtractor={(item) => item.key}
-        renderItem={({ item }) => (
-          <View style={styles.zipItem}>
-            <Text style={styles.zipText}>
-              {item.key} {item.state ? `(${item.state})` : ""}
-            </Text>
-
-            <TouchableOpacity onPress={() => removeZip(item.key)}>
-              <Icon name="trash-outline" size={24} color="red" />
+      <View style={styles.zipList}>
+        {savedZips.map((item) => (
+          <View key={item.key} style={styles.zipItem}>
+            <Text style={styles.zipText}>{item.key}</Text>
+            <TouchableOpacity onPress={() => handleRemoveZip(item.key)}>
+              <Icon name="close-circle" size={18} color="red" />
             </TouchableOpacity>
           </View>
-        )}
-      />
+        ))}
+      </View>
 
-      {region && (
-        <MapView style={styles.map} region={region} showsUserLocation>
-          {zipCodes.map((zip) => (
-            <Marker
-              key={zip.key}
-              coordinate={{ latitude: zip.latitude, longitude: zip.longitude }}
-              title={`ZIP: ${zip.key}`}
-            />
-          ))}
+      {loading || !currentLocation ? (
+        <ActivityIndicator size="large" />
+      ) : (
+        <MapView
+          style={styles.map}
+          initialRegion={{
+            latitude: currentLocation.latitude,
+            longitude: currentLocation.longitude,
+            latitudeDelta: 0.2,
+            longitudeDelta: 0.2,
+          }}
+          showsUserLocation={true} // Отображает стандартный синий маркер
+        >
+          {features.map((feature) => {
+            const { geometry, properties } = feature;
+            const zipCode = properties.ZCTA5CE10;
+            const isSelected = savedZips.some((z) => z.key === zipCode);
+            let polygons =
+              geometry.type === "Polygon"
+                ? (geometry.coordinates as number[][][])
+                : (geometry.coordinates as number[][][][]).flat();
+
+            return polygons.map((polygon, i) => {
+              const coords = polygon.map(([lng, lat]) => ({
+                latitude: lat,
+                longitude: lng,
+              }));
+
+              return (
+                <Polygon
+                  key={`${zipCode}-${i}`}
+                  coordinates={coords}
+                  strokeColor="#000"
+                  fillColor={
+                    isSelected ? "rgba(0,200,0,0.4)" : "rgba(0,150,255,0.3)"
+                  }
+                  strokeWidth={1}
+                  tappable
+                  onPress={() => toggleZipFromMap(zipCode)}
+                />
+              );
+            });
+          })}
         </MapView>
       )}
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 10 },
-  inputContainer: {
+  container: {
+    flex: 1,
+    padding: 10,
+  },
+  inputRow: {
     flexDirection: "row",
-    marginVertical: 10,
     alignItems: "center",
+    marginBottom: 10,
+    gap: 10,
   },
   input: {
     flex: 1,
     borderBottomWidth: 1,
     borderColor: "#ccc",
-    marginRight: 10,
-    padding: 5,
+    padding: 6,
+  },
+  zipList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 10,
   },
   zipItem: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 5,
-    borderBottomWidth: 1,
-    borderColor: "#eee",
+    alignItems: "center",
+    backgroundColor: "#f0f0f0",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
   },
   zipText: {
-    fontSize: 16,
+    marginRight: 6,
+    fontSize: 14,
   },
   map: {
-    width: Dimensions.get("window").width,
-    height: 300,
+    flex: 1,
+    borderRadius: 12,
   },
 });
-
-export default ZipSelectorScreen;

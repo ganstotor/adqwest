@@ -8,7 +8,10 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { auth, db } from "../firebaseConfig";
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+} from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 
 export default function AuthScreen() {
@@ -21,7 +24,11 @@ export default function AuthScreen() {
   const handleAuth = async () => {
     try {
       if (mode === "signup") {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(
+          auth,
+          email,
+          password
+        );
         const user = userCredential.user;
 
         const userDocRef = doc(db, "users_driver", user.uid);
@@ -35,13 +42,26 @@ export default function AuthScreen() {
 
       router.replace("/(driver)/home");
     } catch (error: any) {
-      alert(`${mode === "signup" ? "Sign up" : "Sign in"} failed: ${error.message}`);
+      alert(
+        `${mode === "signup" ? "Sign up" : "Sign in"} failed: ${error.message}`
+      );
+    }
+  };
+
+  const handleQuickLogin = async () => {
+    try {
+      await signInWithEmailAndPassword(auth, "alex@mail.com", "123321");
+      router.replace("/(driver)/home");
+    } catch (error: any) {
+      alert(`Quick login failed: ${error.message}`);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{mode === "signup" ? "Sign Up" : "Login"}</Text>
+      <Text style={styles.title}>
+        {mode === "signup" ? "Sign Up" : "Login"}
+      </Text>
 
       {mode === "signup" && (
         <TextInput
@@ -73,7 +93,9 @@ export default function AuthScreen() {
       </TouchableOpacity>
 
       <Text style={styles.switchText}>
-        {mode === "signup" ? "Already have an account?" : "Don't have an account?"}{" "}
+        {mode === "signup"
+          ? "Already have an account?"
+          : "Don't have an account?"}{" "}
         <Text
           style={styles.switchLink}
           onPress={() => setMode(mode === "signup" ? "login" : "signup")}
@@ -87,6 +109,11 @@ export default function AuthScreen() {
         <Text style={styles.dividerText}>or</Text>
         <View style={styles.line} />
       </View>
+
+      {/* Кнопка быстрого логина */}
+      <TouchableOpacity style={styles.quickButton} onPress={handleQuickLogin}>
+        <Text style={styles.buttonText}>Quick Login (alex@mail.com)</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -118,6 +145,14 @@ const styles = StyleSheet.create({
     width: "100%",
     alignItems: "center",
     marginVertical: 5,
+  },
+  quickButton: {
+    backgroundColor: "#4CAF50",
+    padding: 12,
+    borderRadius: 5,
+    width: "100%",
+    alignItems: "center",
+    marginTop: 10,
   },
   buttonText: {
     color: "white",
