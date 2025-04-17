@@ -12,7 +12,7 @@ import {
 import { onAuthStateChanged, User } from "firebase/auth";
 import { doc, setDoc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "../../../firebaseConfig";
-import MapView, { Polygon, Marker } from "react-native-maps";
+import MapView, { Polygon } from "react-native-maps";
 import Icon from "react-native-vector-icons/Ionicons";
 import * as Location from "expo-location";
 
@@ -52,6 +52,68 @@ const haversineDistance = (
   return R * c;
 };
 
+const stateAbbrMap: Record<string, string> = {
+  "Alabama": "al",
+  "Alaska": "ak",
+  "Arizona": "az",
+  "Arkansas": "ar",
+  "California": "ca",
+  "Colorado": "co",
+  "Connecticut": "ct",
+  "Delaware": "de",
+  "Florida": "fl",
+  "Georgia": "ga",
+  "Hawaii": "hi",
+  "Idaho": "id",
+  "Illinois": "il",
+  "Indiana": "in",
+  "Iowa": "ia",
+  "Kansas": "ks",
+  "Kentucky": "ky",
+  "Louisiana": "la",
+  "Maine": "me",
+  "Maryland": "md",
+  "Massachusetts": "ma",
+  "Michigan": "mi",
+  "Minnesota": "mn",
+  "Mississippi": "ms",
+  "Missouri": "mo",
+  "Montana": "mt",
+  "Nebraska": "ne",
+  "Nevada": "nv",
+  "New Hampshire": "nh",
+  "New Jersey": "nj",
+  "New Mexico": "nm",
+  "New York": "ny",
+  "North Carolina": "nc",
+  "North Dakota": "nd",
+  "Ohio": "oh",
+  "Oklahoma": "ok",
+  "Oregon": "or",
+  "Pennsylvania": "pa",
+  "Rhode Island": "ri",
+  "South Carolina": "sc",
+  "South Dakota": "sd",
+  "Tennessee": "tn",
+  "Texas": "tx",
+  "Utah": "ut",
+  "Vermont": "vt",
+  "Virginia": "va",
+  "Washington": "wa",
+  "West Virginia": "wv",
+  "Wisconsin": "wi",
+  "Wyoming": "wy",
+};
+
+
+const getStateFromCoords = async (latitude: number, longitude: number) => {
+  const geocode = await Location.reverseGeocodeAsync({ latitude, longitude });
+  if (geocode.length > 0 && geocode[0].region) {
+    return geocode[0].region;
+  }
+  return null;
+};
+
 export default function ZipMapScreen() {
   const [features, setFeatures] = useState<GeoFeature[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,6 +124,7 @@ export default function ZipMapScreen() {
     latitude: number;
     longitude: number;
   } | null>(null);
+  const [currentState, setCurrentState] = useState<string | null>(null);
 
   const radius = 10;
 
@@ -90,10 +153,16 @@ export default function ZipMapScreen() {
       if (status !== "granted") return;
 
       let location = await Location.getCurrentPositionAsync({});
+      const region = await getStateFromCoords(
+        location.coords.latitude,
+        location.coords.longitude
+      );
+
       setCurrentLocation({
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
       });
+      setCurrentState(region || null);
     };
 
     fetchLocation();
@@ -102,12 +171,16 @@ export default function ZipMapScreen() {
   useEffect(() => {
     const fetchGeoJSON = async () => {
       try {
-        const res = await fetch(
-          "https://raw.githubusercontent.com/OpenDataDE/State-zip-code-GeoJSON/master/oh_ohio_zip_codes_geo.min.json"
-        );
-        const geo = await res.json();
+        if (!currentLocation || !currentState || !stateAbbrMap[currentState])
+          return;
+          
+        const abbr = stateAbbrMap[currentState];
+        const url = `https://raw.githubusercontent.com/OpenDataDE/State-zip-code-GeoJSON/master/${abbr}_${currentState
+          .toLowerCase()
+          .replace(/ /g, "_")}_zip_codes_geo.min.json`;
 
-        if (!currentLocation) return;
+        const res = await fetch(url);
+        const geo = await res.json();
 
         const filtered = geo.features.filter((f: GeoFeature) => {
           const { geometry } = f;
@@ -137,10 +210,10 @@ export default function ZipMapScreen() {
       }
     };
 
-    if (currentLocation) {
+    if (currentLocation && currentState) {
       fetchGeoJSON();
     }
-  }, [currentLocation]);
+  }, [currentLocation, currentState]);
 
   const updateFirestoreZips = async (updated: ZipListItem[]) => {
     if (user) {
@@ -151,12 +224,23 @@ export default function ZipMapScreen() {
 
   const handleAddZip = async () => {
     const zip = zipInput.trim();
-    if (!zip || zip.length < 3 || savedZips.some((z) => z.key === zip)) return;
-    const updated = [...savedZips, { key: zip, state: "OH" }];
+    if (
+      !zip ||
+      zip.length < 3 ||
+      savedZips.some((z) => z.key === zip) ||
+      !currentState
+    ) return;
+  
+    const abbr = stateAbbrMap[currentState.trim()];
+    if (!abbr) return;
+  
+    const updated = [...savedZips, { key: zip, state: abbr.toUpperCase() }];
     setSavedZips(updated);
     setZipInput("");
     updateFirestoreZips(updated);
   };
+  
+  
 
   const handleRemoveZip = async (zip: string) => {
     const updated = savedZips.filter((z) => z.key !== zip);
@@ -165,13 +249,21 @@ export default function ZipMapScreen() {
   };
 
   const toggleZipFromMap = async (zip: string) => {
+    if (!currentState) return;
+  
+    const abbr = stateAbbrMap[currentState.trim()];
+    if (!abbr) return;
+  
+    const stateCode = abbr.toUpperCase();
     const exists = savedZips.some((z) => z.key === zip);
     const updated = exists
       ? savedZips.filter((z) => z.key !== zip)
-      : [...savedZips, { key: zip, state: "OH" }];
+      : [...savedZips, { key: zip, state: stateCode }];
+  
     setSavedZips(updated);
     updateFirestoreZips(updated);
   };
+  
 
   return (
     <View style={styles.container}>
@@ -208,7 +300,7 @@ export default function ZipMapScreen() {
             latitudeDelta: 0.2,
             longitudeDelta: 0.2,
           }}
-          showsUserLocation={true} // Отображает стандартный синий маркер
+          showsUserLocation={true}
         >
           {features.map((feature) => {
             const { geometry, properties } = feature;
