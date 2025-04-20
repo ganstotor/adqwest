@@ -1,4 +1,4 @@
-package com.anonymous.bagr
+package com.bagr
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

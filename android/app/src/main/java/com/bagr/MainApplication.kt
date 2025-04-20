@@ -1,7 +1,9 @@
-package com.anonymous.bagr
+package com.bagr
 
 import android.app.Application
 import android.content.res.Configuration
+
+import com.bagr.BuildConfig
 
 import com.facebook.react.PackageList
 import com.facebook.react.ReactApplication
