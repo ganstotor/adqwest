@@ -1,23 +1,25 @@
 {
-    "cli": {
-      "version": ">=3.13.0"
+  "cli": {
+    "version": ">=3.13.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": false,
+      "distribution": "internal",
+      "channel": "development"
     },
-    "build": {
-      "development": {
-        "developmentClient": true,
-        "distribution": "internal"
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
       },
-      "preview": {
-        "distribution": "internal",
-        "android": {
-          "buildType": "apk"
-        }
+      "channel": "preview"
+    },
+    "production": {
+      "android": {
+        "buildType": "apk"
       },
-      "production": {
-        "android": {
-          "buildType": "apk"
-        }
-      }
+      "channel": "production"
     }
   }
-  
+}

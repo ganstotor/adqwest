@@ -40,7 +40,7 @@ const WelcomeScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
             <Image
-        source={require("@/assets/images/bagr.png")}
+        source={require("@/assets/images/logo.png")}
         style={styles.bagrImage}
       />
       <FlatList

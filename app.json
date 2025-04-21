@@ -4,13 +4,16 @@
     "slug": "bagr",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/bagr.png",
+    "icon": "./assets/images/logo.png",
     "scheme": "bagr",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "googleServicesFile": "./GoogleService-Info.plist"
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "runtimeVersion": {
+        "policy": "appVersion"
+      }
     },
     "android": {
       "googleServicesFile": "./google-services.json",
@@ -23,10 +26,11 @@
         "android.permission.CAMERA"
       ],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/bagr.png",
+        "foregroundImage": "./assets/images/logo.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.bagr"
+      "package": "com.bagr",
+      "runtimeVersion": "1.0.0"
     },
     "web": {
       "bundler": "metro",
@@ -40,7 +44,7 @@
       "expo-barcode-scanner"
     ],
     "splash": {
-      "image": "./assets/images/bagr.png",
+      "image": "./assets/images/logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -54,6 +58,9 @@
       "eas": {
         "projectId": "357f1703-33e2-4099-8a88-ed573b6e99e3"
       }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/357f1703-33e2-4099-8a88-ed573b6e99e3"
     }
   }
 }

@@ -8,11 +8,11 @@ const StatisticsScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.item}>
-        <Text style={styles.label}>Campaign Completed:</Text>
+        <Text style={styles.label}>Campaign completed:</Text>
         <Text style={styles.value}>{campaignCompleted}</Text>
       </View>
       <View style={styles.item}>
-        <Text style={styles.label}>Missions Completed:</Text>
+        <Text style={styles.label}>Missions completed:</Text>
         <Text style={styles.value}>{missionsCompleted}</Text>
       </View>
     </View>
