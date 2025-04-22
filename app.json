@@ -13,7 +13,9 @@
       "googleServicesFile": "./GoogleService-Info.plist",
       "runtimeVersion": {
         "policy": "appVersion"
-      }
+      },
+      "bundleIdentifier": "com.bagr.app"
+
     },
     "android": {
       "googleServicesFile": "./google-services.json",
@@ -41,7 +43,8 @@
       "expo-router",
       "@react-native-google-signin/google-signin",
       "expo-secure-store",
-      "expo-barcode-scanner"
+      "expo-barcode-scanner",
+      "expo-firebase-core"
     ],
     "splash": {
       "image": "./assets/images/logo.png",
