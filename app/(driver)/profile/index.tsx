@@ -46,21 +46,6 @@ const ProfileScreen = () => {
     }, [userId])
   );
 
-  const renderStars = (rating: number) => {
-    const stars = [];
-    for (let i = 1; i <= 5; i++) {
-      stars.push(
-        <FontAwesome
-          key={i}
-          name={i <= rating ? 'star' : 'star-o'}
-          size={24}
-          color="#FFD700"
-        />
-      );
-    }
-    return <View style={styles.starRow}>{stars}</View>;
-  };
-
   if (loading || !userData) {
     return (
       <View style={styles.container}>
@@ -84,9 +69,6 @@ const ProfileScreen = () => {
           </View>
         )}
       </View>
-
-      <Text style={styles.name}>{userData.name}</Text>
-      {renderStars(userData.rating)}
 
       <TouchableOpacity
         style={styles.button}

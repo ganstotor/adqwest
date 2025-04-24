@@ -84,11 +84,6 @@ const OrderBagsScreen = () => {
               }
             }
     
-            // Выводим данные для проверки в консоль
-            console.log("Campaign Data:", data);
-            console.log("Company Name:", companyName);
-            console.log("Logo URL:", logo);
-    
             filtered.push({
               id: campaignId,
               ...data,
@@ -176,7 +171,7 @@ const OrderBagsScreen = () => {
           <Text style={{ marginBottom: 15 }}>
             We’re coming to your area soon! :)
           </Text>
-          <Link href="/home" asChild>
+          <Link href="/location" asChild>
             <TouchableOpacity
               style={{
                 padding: 10,

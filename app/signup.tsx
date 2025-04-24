@@ -35,12 +35,15 @@ export default function AuthScreen() {
         await setDoc(userDocRef, {
           email: user.email,
           name: name,
+          rank: 'Recruit',
+          completedMissionsCount: 0,
+          uncompletedMissionsCount: 0,
         });
       } else {
         await signInWithEmailAndPassword(auth, email, password);
       }
 
-      router.replace("/(driver)/home");
+      router.replace("/(driver)/location");
     } catch (error: any) {
       alert(
         `${mode === "signup" ? "Sign up" : "Sign in"} failed: ${error.message}`
@@ -51,7 +54,7 @@ export default function AuthScreen() {
   const handleQuickLogin = async () => {
     try {
       await signInWithEmailAndPassword(auth, "alex@mail.com", "123321");
-      router.replace("/(driver)/home");
+      router.replace("/(driver)/location");
     } catch (error: any) {
       alert(`Quick login failed: ${error.message}`);
     }

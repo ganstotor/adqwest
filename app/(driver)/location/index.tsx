@@ -6,51 +6,19 @@ import {
   Button,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
   ActivityIndicator,
 } from "react-native";
+import MapboxGL from "@rnmapbox/maps";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { doc, setDoc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "../../../firebaseConfig";
-import MapView, { Polygon } from "react-native-maps";
 import Icon from "react-native-vector-icons/Ionicons";
 import * as Location from "expo-location";
+import type { FeatureCollection, Geometry, GeoJsonProperties } from "geojson";
 
-type GeoFeature = {
-  type: string;
-  properties: {
-    ZCTA5CE10: string;
-  };
-  geometry: {
-    type: string;
-    coordinates: number[][][] | number[][][][];
-  };
-};
-
-type ZipListItem = {
-  key: string;
-  state: string;
-};
-
-const haversineDistance = (
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number => {
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const R = 6371;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-};
+MapboxGL.setAccessToken(
+  "pk.eyJ1IjoiZ2Fuc3RvdG9yIiwiYSI6ImNtOW55bzY0cDA0YmEycHM0dzl5NGhta3cifQ.3pjHBvYQeyD-ztr2sEYhUA"
+);
 
 const stateAbbrMap: Record<string, string> = {
   "Alabama": "al",
@@ -104,14 +72,45 @@ const stateAbbrMap: Record<string, string> = {
   "Wisconsin": "wi",
   "Wyoming": "wy",
 };
+type GeoFeature = {
+  type: string;
+  properties: {
+    ZCTA5CE10: string;
+  };
+  geometry: {
+    type: string;
+    coordinates: number[][][] | number[][][][];
+  };
+};
 
+type ZipListItem = {
+  key: string;
+  state: string;
+};
+
+const haversineDistance = (
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number => {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
 
 const getStateFromCoords = async (latitude: number, longitude: number) => {
   const geocode = await Location.reverseGeocodeAsync({ latitude, longitude });
-  if (geocode.length > 0 && geocode[0].region) {
-    return geocode[0].region;
-  }
-  return null;
+  return geocode.length > 0 ? geocode[0].region : null;
 };
 
 export default function ZipMapScreen() {
@@ -126,8 +125,6 @@ export default function ZipMapScreen() {
   } | null>(null);
   const [currentState, setCurrentState] = useState<string | null>(null);
 
-  const radius = 10;
-
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => setUser(u));
     return unsubscribe;
@@ -137,11 +134,9 @@ export default function ZipMapScreen() {
     if (!user) return;
     const ref = doc(db, "users_driver", user.uid);
     const unsubscribe = onSnapshot(ref, (snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
-        if (Array.isArray(data.zipCodes)) {
-          setSavedZips(data.zipCodes);
-        }
+      const data = snap.data();
+      if (data && Array.isArray(data.zipCodes)) {
+        setSavedZips(data.zipCodes);
       }
     });
     return unsubscribe;
@@ -149,59 +144,50 @@ export default function ZipMapScreen() {
 
   useEffect(() => {
     const fetchLocation = async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
+      const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") return;
-
-      let location = await Location.getCurrentPositionAsync({});
+      const location = await Location.getCurrentPositionAsync({});
       const region = await getStateFromCoords(
         location.coords.latitude,
         location.coords.longitude
       );
-
       setCurrentLocation({
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
       });
-      setCurrentState(region || null);
+      setCurrentState(region);
     };
-
     fetchLocation();
   }, []);
 
   useEffect(() => {
     const fetchGeoJSON = async () => {
+      if (!currentLocation || !currentState || !stateAbbrMap[currentState])
+        return;
       try {
-        if (!currentLocation || !currentState || !stateAbbrMap[currentState])
-          return;
-          
         const abbr = stateAbbrMap[currentState];
         const url = `https://raw.githubusercontent.com/OpenDataDE/State-zip-code-GeoJSON/master/${abbr}_${currentState
           .toLowerCase()
           .replace(/ /g, "_")}_zip_codes_geo.min.json`;
-
         const res = await fetch(url);
         const geo = await res.json();
-
         const filtered = geo.features.filter((f: GeoFeature) => {
-          const { geometry } = f;
-          let polygons =
-            geometry.type === "Polygon"
-              ? (geometry.coordinates as number[][][])
-              : (geometry.coordinates as number[][][][]).flat();
-
+          const polygons =
+            f.geometry.type === "Polygon"
+              ? (f.geometry.coordinates as number[][][])
+              : (f.geometry.coordinates as number[][][][]).flat();
           return polygons.some((polygon) =>
-            polygon.some(([lng, lat]) => {
-              const dist = haversineDistance(
-                currentLocation.latitude,
-                currentLocation.longitude,
-                lat,
-                lng
-              );
-              return dist <= radius;
-            })
+            polygon.some(
+              ([lng, lat]) =>
+                haversineDistance(
+                  currentLocation.latitude,
+                  currentLocation.longitude,
+                  lat,
+                  lng
+                ) <= 10
+            )
           );
         });
-
         setFeatures(filtered);
       } catch (err) {
         console.error("GeoJSON error:", err);
@@ -209,29 +195,36 @@ export default function ZipMapScreen() {
         setLoading(false);
       }
     };
-
-    if (currentLocation && currentState) {
-      fetchGeoJSON();
-    }
+    fetchGeoJSON();
   }, [currentLocation, currentState]);
 
   const updateFirestoreZips = async (updated: ZipListItem[]) => {
-    if (user) {
-      const ref = doc(db, "users_driver", user.uid);
-      await setDoc(ref, { zipCodes: updated }, { merge: true });
+    if (!user) return;
+    const ref = doc(db, "users_driver", user.uid);
+    await setDoc(ref, { zipCodes: updated }, { merge: true });
+  };
+
+  const getStateFromZip = async (zip: string): Promise<string | null> => {
+    try {
+      const res = await fetch(`https://api.zippopotam.us/us/${zip}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.places?.[0]?.state || null;
+      
+    } catch {
+      return null;
     }
   };
+  
 
   const handleAddZip = async () => {
     const zip = zipInput.trim();
-    if (
-      !zip ||
-      zip.length < 3 ||
-      savedZips.some((z) => z.key === zip) ||
-      !currentState
-    ) return;
+    if (!zip || zip.length < 3 || savedZips.some((z) => z.key === zip)) return;
   
-    const abbr = stateAbbrMap[currentState.trim()];
+    const zipState = await getStateFromZip(zip);
+    if (!zipState) return;
+    console.log('zipState', zipState);
+    const abbr = stateAbbrMap[zipState.trim()];
     if (!abbr) return;
   
     const updated = [...savedZips, { key: zip, state: abbr.toUpperCase() }];
@@ -239,8 +232,6 @@ export default function ZipMapScreen() {
     setZipInput("");
     updateFirestoreZips(updated);
   };
-  
-  
 
   const handleRemoveZip = async (zip: string) => {
     const updated = savedZips.filter((z) => z.key !== zip);
@@ -250,20 +241,28 @@ export default function ZipMapScreen() {
 
   const toggleZipFromMap = async (zip: string) => {
     if (!currentState) return;
-  
     const abbr = stateAbbrMap[currentState.trim()];
     if (!abbr) return;
-  
     const stateCode = abbr.toUpperCase();
     const exists = savedZips.some((z) => z.key === zip);
     const updated = exists
       ? savedZips.filter((z) => z.key !== zip)
       : [...savedZips, { key: zip, state: stateCode }];
-  
     setSavedZips(updated);
     updateFirestoreZips(updated);
   };
-  
+
+  const generateGeoJson = () => ({
+    type: "FeatureCollection",
+    features: features.map((feature) => ({
+      type: "Feature",
+      geometry: feature.geometry,
+      properties: {
+        ZCTA5CE10: feature.properties.ZCTA5CE10,
+        selected: savedZips.some((z) => z.key === feature.properties.ZCTA5CE10),
+      },
+    })),
+  });
 
   return (
     <View style={styles.container}>
@@ -277,7 +276,6 @@ export default function ZipMapScreen() {
         />
         <Button title="Add" onPress={handleAddZip} />
       </View>
-
       <View style={styles.zipList}>
         {savedZips.map((item) => (
           <View key={item.key} style={styles.zipItem}>
@@ -288,79 +286,66 @@ export default function ZipMapScreen() {
           </View>
         ))}
       </View>
-
       {loading || !currentLocation ? (
         <ActivityIndicator size="large" />
       ) : (
-        <MapView
+        <MapboxGL.MapView
           style={styles.map}
-          initialRegion={{
-            latitude: currentLocation.latitude,
-            longitude: currentLocation.longitude,
-            latitudeDelta: 0.2,
-            longitudeDelta: 0.2,
-          }}
-          showsUserLocation={true}
+          styleURL={MapboxGL.StyleURL.Street}
         >
-          {features.map((feature) => {
-            const { geometry, properties } = feature;
-            const zipCode = properties.ZCTA5CE10;
-            const isSelected = savedZips.some((z) => z.key === zipCode);
-            let polygons =
-              geometry.type === "Polygon"
-                ? (geometry.coordinates as number[][][])
-                : (geometry.coordinates as number[][][][]).flat();
-
-            return polygons.map((polygon, i) => {
-              const coords = polygon.map(([lng, lat]) => ({
-                latitude: lat,
-                longitude: lng,
-              }));
-
-              return (
-                <Polygon
-                  key={`${zipCode}-${i}`}
-                  coordinates={coords}
-                  strokeColor="#000"
-                  fillColor={
-                    isSelected ? "rgba(0,200,0,0.4)" : "rgba(0,150,255,0.3)"
-                  }
-                  strokeWidth={1}
-                  tappable
-                  onPress={() => toggleZipFromMap(zipCode)}
-                />
-              );
-            });
-          })}
-        </MapView>
+          <MapboxGL.Camera
+            centerCoordinate={[
+              currentLocation.longitude,
+              currentLocation.latitude,
+            ]}
+            zoomLevel={10}
+          />
+          <MapboxGL.UserLocation />
+          <MapboxGL.ShapeSource
+            id="zip-polygons"
+            shape={
+              generateGeoJson() as FeatureCollection<
+                Geometry,
+                GeoJsonProperties
+              >
+            }
+            onPress={(e) => {
+              const feature = e.features?.[0];
+              if (feature && feature.properties?.ZCTA5CE10) {
+                const zip = feature.properties.ZCTA5CE10;
+                toggleZipFromMap(zip);
+              }
+            }}
+          >
+            <MapboxGL.FillLayer
+              id="zip-fill"
+              style={{
+                fillColor: [
+                  "case",
+                  ["==", ["get", "selected"], true],
+                  "rgba(0,200,0,0.4)",
+                  "rgba(0,150,255,0.3)",
+                ],
+                fillOutlineColor: "#000",
+              }}
+            />
+          </MapboxGL.ShapeSource>
+        </MapboxGL.MapView>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 10,
-  },
+  container: { flex: 1, padding: 10 },
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 10,
     gap: 10,
   },
-  input: {
-    flex: 1,
-    borderBottomWidth: 1,
-    borderColor: "#ccc",
-    padding: 6,
-  },
-  zipList: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 10,
-  },
+  input: { flex: 1, borderBottomWidth: 1, borderColor: "#ccc", padding: 6 },
+  zipList: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 10 },
   zipItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -369,12 +354,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 20,
   },
-  zipText: {
-    marginRight: 6,
-    fontSize: 14,
-  },
-  map: {
-    flex: 1,
-    borderRadius: 12,
-  },
+  zipText: { marginRight: 6, fontSize: 14 },
+  map: { flex: 1, borderRadius: 12 },
 });
