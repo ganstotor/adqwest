@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, Button, Image, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import * as ImagePicker from 'expo-image-picker';
 import { db } from '../../../firebaseConfig';
@@ -9,6 +9,9 @@ const SettingsScreen = () => {
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   useEffect(() => {
     const auth = getAuth();
@@ -85,6 +88,38 @@ const SettingsScreen = () => {
     }
   };
 
+  const handlePasswordChange = async () => {
+    const auth = getAuth();
+    const user = auth.currentUser;
+
+    if (user && oldPassword && newPassword && confirmPassword) {
+      if (newPassword !== confirmPassword) {
+        Alert.alert('Error', 'New password and confirm password do not match');
+        return;
+      }
+
+      try {
+        // Create credentials for re-authentication
+        const credential = EmailAuthProvider.credential(user.email || '', oldPassword);
+
+        // Re-authenticate user
+        await reauthenticateWithCredential(user, credential);
+
+        // Update the password
+        await updatePassword(user, newPassword);
+        Alert.alert('Success', 'Password changed successfully');
+        setOldPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      } catch (error) {
+        console.error('Password change error:', error);
+        Alert.alert('Error', 'Failed to change password. Please check your credentials and try again.');
+      }
+    } else {
+      Alert.alert('Error', 'Please fill all fields.');
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Settings</Text>
@@ -112,6 +147,45 @@ const SettingsScreen = () => {
       </View>
 
       <Button title="Save Settings" onPress={saveSettings} />
+
+      <View style={styles.passwordChangeContainer}>
+        <Text style={styles.passwordChangeTitle}>Change Password</Text>
+
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Old Password</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter old password"
+            secureTextEntry
+            value={oldPassword}
+            onChangeText={setOldPassword}
+          />
+        </View>
+
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>New Password</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter new password"
+            secureTextEntry
+            value={newPassword}
+            onChangeText={setNewPassword}
+          />
+        </View>
+
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Confirm New Password</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Confirm new password"
+            secureTextEntry
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+          />
+        </View>
+
+        <Button title="Change Password" onPress={handlePasswordChange} />
+      </View>
     </View>
   );
 };
@@ -169,6 +243,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
     fontSize: 16,
+  },
+  passwordChangeContainer: {
+    marginTop: 40,
+  },
+  passwordChangeTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 15,
   },
 });
 

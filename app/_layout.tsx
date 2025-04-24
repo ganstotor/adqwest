@@ -36,7 +36,7 @@ export default function RootLayout() {
   useEffect(() => {
     if (isAppReady) {
       if (user) {
-        router.replace("/(driver)/home"); // Если залогинен, переходим на (tabs)
+        router.replace("/(driver)/location"); // Если залогинен, переходим на (tabs)
       } else {
         router.replace("/"); // Иначе — на регистрацию
       }
