@@ -21,56 +21,56 @@ MapboxGL.setAccessToken(
 );
 
 const stateAbbrMap: Record<string, string> = {
-  "Alabama": "al",
-  "Alaska": "ak",
-  "Arizona": "az",
-  "Arkansas": "ar",
-  "California": "ca",
-  "Colorado": "co",
-  "Connecticut": "ct",
-  "Delaware": "de",
-  "Florida": "fl",
-  "Georgia": "ga",
-  "Hawaii": "hi",
-  "Idaho": "id",
-  "Illinois": "il",
-  "Indiana": "in",
-  "Iowa": "ia",
-  "Kansas": "ks",
-  "Kentucky": "ky",
-  "Louisiana": "la",
-  "Maine": "me",
-  "Maryland": "md",
-  "Massachusetts": "ma",
-  "Michigan": "mi",
-  "Minnesota": "mn",
-  "Mississippi": "ms",
-  "Missouri": "mo",
-  "Montana": "mt",
-  "Nebraska": "ne",
-  "Nevada": "nv",
+  Alabama: "al",
+  Alaska: "ak",
+  Arizona: "az",
+  Arkansas: "ar",
+  California: "ca",
+  Colorado: "co",
+  Connecticut: "ct",
+  Delaware: "de",
+  Florida: "fl",
+  Georgia: "ga",
+  Hawaii: "hi",
+  Idaho: "id",
+  Illinois: "il",
+  Indiana: "in",
+  Iowa: "ia",
+  Kansas: "ks",
+  Kentucky: "ky",
+  Louisiana: "la",
+  Maine: "me",
+  Maryland: "md",
+  Massachusetts: "ma",
+  Michigan: "mi",
+  Minnesota: "mn",
+  Mississippi: "ms",
+  Missouri: "mo",
+  Montana: "mt",
+  Nebraska: "ne",
+  Nevada: "nv",
   "New Hampshire": "nh",
   "New Jersey": "nj",
   "New Mexico": "nm",
   "New York": "ny",
   "North Carolina": "nc",
   "North Dakota": "nd",
-  "Ohio": "oh",
-  "Oklahoma": "ok",
-  "Oregon": "or",
-  "Pennsylvania": "pa",
+  Ohio: "oh",
+  Oklahoma: "ok",
+  Oregon: "or",
+  Pennsylvania: "pa",
   "Rhode Island": "ri",
   "South Carolina": "sc",
   "South Dakota": "sd",
-  "Tennessee": "tn",
-  "Texas": "tx",
-  "Utah": "ut",
-  "Vermont": "vt",
-  "Virginia": "va",
-  "Washington": "wa",
+  Tennessee: "tn",
+  Texas: "tx",
+  Utah: "ut",
+  Vermont: "vt",
+  Virginia: "va",
+  Washington: "wa",
   "West Virginia": "wv",
-  "Wisconsin": "wi",
-  "Wyoming": "wy",
+  Wisconsin: "wi",
+  Wyoming: "wy",
 };
 type GeoFeature = {
   type: string;
@@ -124,6 +124,43 @@ export default function ZipMapScreen() {
     longitude: number;
   } | null>(null);
   const [currentState, setCurrentState] = useState<string | null>(null);
+  const [radius, setRadius] = useState(10);
+  const [newRadius, setNewRadius] = useState("10");
+
+  const fetchGeoJSON = async (customRadius = radius) => {
+    if (!currentLocation || !currentState || !stateAbbrMap[currentState])
+      return;
+    try {
+      const abbr = stateAbbrMap[currentState];
+      const url = `https://raw.githubusercontent.com/OpenDataDE/State-zip-code-GeoJSON/master/${abbr}_${currentState
+        .toLowerCase()
+        .replace(/ /g, "_")}_zip_codes_geo.min.json`;
+      const res = await fetch(url);
+      const geo = await res.json();
+      const filtered = geo.features.filter((f: GeoFeature) => {
+        const polygons =
+          f.geometry.type === "Polygon"
+            ? (f.geometry.coordinates as number[][][])
+            : (f.geometry.coordinates as number[][][][]).flat();
+        return polygons.some((polygon) =>
+          polygon.some(
+            ([lng, lat]) =>
+              haversineDistance(
+                currentLocation.latitude,
+                currentLocation.longitude,
+                lat,
+                lng
+              ) <= customRadius
+          )
+        );
+      });
+      setFeatures(filtered);
+    } catch (err) {
+      console.error("GeoJSON error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => setUser(u));
@@ -161,41 +198,9 @@ export default function ZipMapScreen() {
   }, []);
 
   useEffect(() => {
-    const fetchGeoJSON = async () => {
-      if (!currentLocation || !currentState || !stateAbbrMap[currentState])
-        return;
-      try {
-        const abbr = stateAbbrMap[currentState];
-        const url = `https://raw.githubusercontent.com/OpenDataDE/State-zip-code-GeoJSON/master/${abbr}_${currentState
-          .toLowerCase()
-          .replace(/ /g, "_")}_zip_codes_geo.min.json`;
-        const res = await fetch(url);
-        const geo = await res.json();
-        const filtered = geo.features.filter((f: GeoFeature) => {
-          const polygons =
-            f.geometry.type === "Polygon"
-              ? (f.geometry.coordinates as number[][][])
-              : (f.geometry.coordinates as number[][][][]).flat();
-          return polygons.some((polygon) =>
-            polygon.some(
-              ([lng, lat]) =>
-                haversineDistance(
-                  currentLocation.latitude,
-                  currentLocation.longitude,
-                  lat,
-                  lng
-                ) <= 10
-            )
-          );
-        });
-        setFeatures(filtered);
-      } catch (err) {
-        console.error("GeoJSON error:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchGeoJSON();
+    if (currentLocation && currentState) {
+      fetchGeoJSON(); // использует текущий radius
+    }
   }, [currentLocation, currentState]);
 
   const updateFirestoreZips = async (updated: ZipListItem[]) => {
@@ -210,23 +215,21 @@ export default function ZipMapScreen() {
       if (!res.ok) return null;
       const data = await res.json();
       return data.places?.[0]?.state || null;
-      
     } catch {
       return null;
     }
   };
-  
 
   const handleAddZip = async () => {
     const zip = zipInput.trim();
     if (!zip || zip.length < 3 || savedZips.some((z) => z.key === zip)) return;
-  
+
     const zipState = await getStateFromZip(zip);
     if (!zipState) return;
-    console.log('zipState', zipState);
+    console.log("zipState", zipState);
     const abbr = stateAbbrMap[zipState.trim()];
     if (!abbr) return;
-  
+
     const updated = [...savedZips, { key: zip, state: abbr.toUpperCase() }];
     setSavedZips(updated);
     setZipInput("");
@@ -277,30 +280,69 @@ export default function ZipMapScreen() {
         <Button title="Add" onPress={handleAddZip} />
       </View>
 
-      <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 10 }}>
-  <Button
-    title="Select All ZIPs"
-    onPress={() => {
-      if (!currentState) return;
-      const abbr = stateAbbrMap[currentState.trim()];
-      if (!abbr) return;
-      const stateCode = abbr.toUpperCase();
-      const allZips = features.map((f) => f.properties.ZCTA5CE10);
-      const uniqueZips = Array.from(new Set([...savedZips.map(z => z.key), ...allZips]));
-      const updated = uniqueZips.map(zip => ({ key: zip, state: stateCode }));
-      setSavedZips(updated);
-      updateFirestoreZips(updated);
-    }}
-  />
-  <Button
-    title="Deselect All ZIPs"
-    onPress={() => {
-      setSavedZips([]);
-      updateFirestoreZips([]);
-    }}
-  />
-</View>
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          marginBottom: 10,
+        }}
+      >
+        <Button
+          title="Select All ZIPs"
+          onPress={() => {
+            if (!currentState) return;
+            const abbr = stateAbbrMap[currentState.trim()];
+            if (!abbr) return;
+            const stateCode = abbr.toUpperCase();
+            const allZips = features.map((f) => f.properties.ZCTA5CE10);
+            const uniqueZips = Array.from(
+              new Set([...savedZips.map((z) => z.key), ...allZips])
+            );
+            const updated = uniqueZips.map((zip) => ({
+              key: zip,
+              state: stateCode,
+            }));
+            setSavedZips(updated);
+            updateFirestoreZips(updated);
+          }}
+        />
+        <Button
+          title="Deselect All ZIPs"
+          onPress={() => {
+            setSavedZips([]);
+            updateFirestoreZips([]);
+          }}
+        />
+      </View>
 
+      <View
+        style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}
+      >
+        <Text style={{ marginRight: 8 }}>Radius (miles):</Text>
+        <TextInput
+          value={newRadius}
+          onChangeText={setNewRadius}
+          keyboardType="numeric"
+          style={{
+            borderWidth: 1,
+            borderColor: "#ccc",
+            padding: 6,
+            width: 60,
+            marginRight: 10,
+          }}
+        />
+        <Button
+          title="Apply Radius"
+          onPress={() => {
+            const parsed = parseFloat(newRadius);
+            if (!isNaN(parsed)) {
+              setRadius(parsed);
+              setLoading(true);
+              fetchGeoJSON(parsed); // пересчитывает zip области
+            }
+          }}
+        />
+      </View>
 
       <View style={styles.zipList}>
         {savedZips.map((item) => (
