@@ -4,6 +4,7 @@ import { getAuth, onAuthStateChanged, updatePassword, EmailAuthProvider, reauthe
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import * as ImagePicker from 'expo-image-picker';
 import { db } from '../../../firebaseConfig';
+import { ScrollView } from 'react-native';
 
 const SettingsScreen = () => {
   const [name, setName] = useState('');
@@ -121,72 +122,74 @@ const SettingsScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Settings</Text>
-
-      <TouchableOpacity onPress={pickImage}>
-        <View style={styles.avatarWrapper}>
-          {avatar ? (
-            <Image source={{ uri: avatar }} style={styles.avatar} />
-          ) : (
-            <View style={styles.placeholder}>
-              <Text style={styles.placeholderText}>Avatar</Text>
-            </View>
-          )}
+    <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <View style={styles.container}>
+        <Text style={styles.title}>Settings</Text>
+  
+        <TouchableOpacity onPress={pickImage}>
+          <View style={styles.avatarWrapper}>
+            {avatar ? (
+              <Image source={{ uri: avatar }} style={styles.avatar} />
+            ) : (
+              <View style={styles.placeholder}>
+                <Text style={styles.placeholderText}>Avatar</Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+  
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Name</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter your name"
+            value={name}
+            onChangeText={setName}
+          />
         </View>
-      </TouchableOpacity>
-
-      <View style={styles.inputContainer}>
-        <Text style={styles.label}>Name</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Enter your name"
-          value={name}
-          onChangeText={setName}
-        />
+  
+        <Button title="Save Settings" onPress={saveSettings} />
+  
+        <View style={styles.passwordChangeContainer}>
+          <Text style={styles.passwordChangeTitle}>Change Password</Text>
+  
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Old Password</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter old password"
+              secureTextEntry
+              value={oldPassword}
+              onChangeText={setOldPassword}
+            />
+          </View>
+  
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>New Password</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter new password"
+              secureTextEntry
+              value={newPassword}
+              onChangeText={setNewPassword}
+            />
+          </View>
+  
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Confirm New Password</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Confirm new password"
+              secureTextEntry
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+            />
+          </View>
+  
+          <Button title="Change Password" onPress={handlePasswordChange} />
+        </View>
       </View>
-
-      <Button title="Save Settings" onPress={saveSettings} />
-
-      <View style={styles.passwordChangeContainer}>
-        <Text style={styles.passwordChangeTitle}>Change Password</Text>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Old Password</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter old password"
-            secureTextEntry
-            value={oldPassword}
-            onChangeText={setOldPassword}
-          />
-        </View>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>New Password</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter new password"
-            secureTextEntry
-            value={newPassword}
-            onChangeText={setNewPassword}
-          />
-        </View>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Confirm New Password</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Confirm new password"
-            secureTextEntry
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-          />
-        </View>
-
-        <Button title="Change Password" onPress={handlePasswordChange} />
-      </View>
-    </View>
+    </ScrollView>
   );
 };
 
@@ -252,6 +255,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 15,
   },
+  scrollContainer: {
+    flexGrow: 1,
+    padding: 20,
+    backgroundColor: '#fff',
+  },
+  
 });
 
 export default SettingsScreen;

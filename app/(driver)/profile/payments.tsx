@@ -1,52 +1,63 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
-import { ThemedView } from '@/components/ThemedView';
-import { ThemedText } from '@/components/ThemedText';
+import { View, Text, TextInput, Button, StyleSheet, Alert, FlatList } from 'react-native';
 import { getAuth } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { db } from '../../../firebaseConfig'; // Путь к вашему файлу конфигурации Firebase
+import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../../../firebaseConfig';
 
-// Типы данных
-interface BankInfo {
-  routing: string;
-  account: string;
+interface Payment {
+  id: string;
+  amount: number;
+  date: string;
 }
 
 export default function PaymentsScreen() {
   const [currentUserUID, setCurrentUserUID] = useState<string | null>(null);
   const [routingNumber, setRoutingNumber] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
-  const [savedBankInfo, setSavedBankInfo] = useState<null | { routing: string; account: string }>(null);
+  const [earnings, setEarnings] = useState<number>(0);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [isEditing, setIsEditing] = useState(false);
 
-  // Получаем текущего пользователя из Firebase Auth
   useEffect(() => {
     const auth = getAuth();
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
         setCurrentUserUID(user.uid);
-        loadBankInfo(user.uid); // Загружаем банковскую информацию пользователя
-      } else {
-        setCurrentUserUID(null);
+        await loadUserData(user.uid);
+        await loadPayments(user.uid);
       }
     });
 
     return () => unsubscribe();
   }, []);
 
-  const loadBankInfo = async (uid: string) => {
-    try {
-      // Получаем документ пользователя из Firestore
-      const docRef = doc(db, 'users_driver', uid); // Коллекция 'users_driver', документ с UID пользователя
-      const docSnap = await getDoc(docRef);
-
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setSavedBankInfo(data?.bankInfo || null);
-      }
-    } catch (error) {
-      console.error('Error loading bank info', error);
+  const loadUserData = async (uid: string) => {
+    const ref = doc(db, 'users_driver', uid);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      const data = snap.data();
+      setRoutingNumber(data.routing || '');
+      setAccountNumber(data.account || '');
+      setEarnings(data.earnings || 0);
     }
+  };
+
+  const loadPayments = async (uid: string) => {
+    const ref = doc(db, 'users_driver', uid);
+    const q = query(collection(db, 'payment'), where('userDriverId', '==', ref));
+    const querySnapshot = await getDocs(q);
+
+    const result: Payment[] = [];
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      result.push({
+        id: doc.id,
+        amount: data.amount || 0,
+        date: data.date || '—',
+      });
+    });
+
+    setPayments(result);
   };
 
   const validateBankInfo = () => {
@@ -64,41 +75,37 @@ export default function PaymentsScreen() {
   const handleSaveBankInfo = async () => {
     if (!validateBankInfo() || !currentUserUID) return;
 
-    const newBankInfo = {
-      routing: routingNumber,
-      account: accountNumber,
-    };
-
     try {
-      // Сохраняем данные в Firestore в коллекцию 'users_driver', документ с UID текущего пользователя
       await setDoc(doc(db, 'users_driver', currentUserUID), {
-        bankInfo: newBankInfo
+        routing: routingNumber,
+        account: accountNumber,
       }, { merge: true });
 
-      // Обновляем локальный стейт
-      setSavedBankInfo(newBankInfo);
       setIsEditing(false);
+      Alert.alert('Saved', 'Bank information updated successfully.');
     } catch (error) {
       console.error('Error saving bank info', error);
+      Alert.alert('Error', 'Failed to save bank information.');
     }
   };
 
-  const handleEdit = () => {
-    setIsEditing(true);
-    setRoutingNumber(savedBankInfo?.routing || '');
-    setAccountNumber(savedBankInfo?.account || '');
-  };
-
   return (
-    <ThemedView style={styles.container}>
-      <Text style={styles.title}>Payment Information</Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>Payment Info</Text>
 
-      {savedBankInfo && !isEditing ? (
+      <View style={styles.earningsBox}>
+        <Text style={styles.earningsLabel}>Total Earnings</Text>
+        <Text style={styles.earningsValue}>$ {earnings.toFixed(2)}</Text>
+      </View>
+
+      {!isEditing ? (
         <View style={styles.cardContainer}>
-          <Text style={styles.cardTitle}>Bank Account Info</Text>
-          <Text style={styles.text}>Routing Number: {savedBankInfo.routing}</Text>
-          <Text style={styles.text}>Account Number: {savedBankInfo.account}</Text>
-          <Button title="Edit" onPress={handleEdit} />
+          <Text style={styles.cardTitle}>Bank Info</Text>
+          <Text style={styles.text}>Routing Number: {routingNumber}</Text>
+          <Text style={styles.text}>Account Number: {accountNumber}</Text>
+          <View style={styles.editButtonContainer}>
+            <Button title="Edit" onPress={() => setIsEditing(true)} />
+          </View>
         </View>
       ) : (
         <View style={styles.formContainer}>
@@ -118,28 +125,63 @@ export default function PaymentsScreen() {
             style={styles.input}
             maxLength={17}
           />
-          <Button title="Save Bank Info" onPress={handleSaveBankInfo} />
+          <View style={styles.saveButtonContainer}>
+            <Button title="Save" onPress={handleSaveBankInfo} />
+          </View>
         </View>
       )}
-    </ThemedView>
+
+      <Text style={styles.subTitle}>Payment History</Text>
+      <FlatList
+        data={payments}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        renderItem={({ item }) => (
+          <View style={styles.paymentItem}>
+            <Text style={styles.paymentAmount}>$ {item.amount.toFixed(2)}</Text>
+            <Text style={styles.paymentDate}>Date: {item.date}</Text>
+          </View>
+        )}
+        ListEmptyComponent={<Text style={styles.empty}>No payments yet.</Text>}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'flex-start',
-    alignItems: 'center',
     padding: 20,
-    paddingTop: 60,
+    backgroundColor: '#fff',
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
+    marginBottom: 15,
+  },
+  subTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 30,
+    marginBottom: 10,
+  },
+  earningsBox: {
+    padding: 15,
+    borderRadius: 10,
+    backgroundColor: '#f1f1f1',
+    alignItems: 'center',
     marginBottom: 20,
   },
+  earningsLabel: {
+    fontSize: 16,
+    color: '#666',
+  },
+  earningsValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#00aa00',
+  },
   formContainer: {
-    width: '100%',
     marginBottom: 20,
   },
   input: {
@@ -150,16 +192,41 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   cardContainer: {
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  text: {
-    fontSize: 16,
-    marginBottom: 10,
+    marginBottom: 20,
   },
   cardTitle: {
-    fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 10,
+    fontSize: 16,
+  },
+  text: {
+    marginBottom: 8,
+    fontSize: 15,
+  },
+  editButtonContainer: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+  },
+  saveButtonContainer: {
+    marginTop: 10,
+    alignSelf: 'flex-start',
+  },
+  paymentItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  paymentAmount: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  paymentDate: {
+    fontSize: 14,
+    color: '#666',
+  },
+  empty: {
+    textAlign: 'center',
+    marginTop: 20,
+    color: '#999',
   },
 });

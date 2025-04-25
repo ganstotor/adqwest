@@ -20,6 +20,13 @@ const ScanBagScreen: React.FC = () => {
   const [driverCampaignRef, setDriverCampaignRef] = useState<DocumentReference | null>(null);
 
   useEffect(() => {
+    // Запрашиваем разрешение при монтировании
+    if (permission && !permission.granted) {
+      requestPermission();
+    }
+  }, [permission]);
+
+  useEffect(() => {
     const fetchDriverCampaign = async () => {
       if (!driverCampaignId) return;
 
@@ -41,7 +48,7 @@ const ScanBagScreen: React.FC = () => {
     const scannedId = data.trim();
 
     if (campaignRef.id === scannedId) {
-      setShowInputs(true); // Показываем поля ввода и скрываем QR-сканер
+      setShowInputs(true);
     } else {
       Alert.alert('Invalid Bag', 'This bag does not match your campaign.');
     }
@@ -82,10 +89,28 @@ const ScanBagScreen: React.FC = () => {
     router.push({ pathname: '/drops/missions', params: { driverCampaignId } });
   };
 
-  if (!permission?.granted) {
-    return <Text>Requesting camera permission...</Text>;
+  // 🔽 Вариант при неизвестном статусе (еще не проверено)
+  if (!permission) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Checking camera permission...</Text>
+      </View>
+    );
   }
 
+  // 🔽 Вариант при отказе в разрешении
+  if (!permission.granted) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>We need access to your camera to scan the bag.</Text>
+        <TouchableOpacity style={styles.button} onPress={requestPermission}>
+          <Text style={styles.buttonText}>Grant Camera Permission</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // 🔽 Если разрешение получено
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Please scan your bag to start mission</Text>

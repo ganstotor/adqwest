@@ -39,7 +39,7 @@ const haversineDistance = (
   lon2: number
 ): number => {
   const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const R = 6371;
+  const R = 3958.8; // Радиус Земли в милях
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
   const a =
@@ -53,58 +53,57 @@ const haversineDistance = (
 };
 
 const stateAbbrMap: Record<string, string> = {
-  "Alabama": "al",
-  "Alaska": "ak",
-  "Arizona": "az",
-  "Arkansas": "ar",
-  "California": "ca",
-  "Colorado": "co",
-  "Connecticut": "ct",
-  "Delaware": "de",
-  "Florida": "fl",
-  "Georgia": "ga",
-  "Hawaii": "hi",
-  "Idaho": "id",
-  "Illinois": "il",
-  "Indiana": "in",
-  "Iowa": "ia",
-  "Kansas": "ks",
-  "Kentucky": "ky",
-  "Louisiana": "la",
-  "Maine": "me",
-  "Maryland": "md",
-  "Massachusetts": "ma",
-  "Michigan": "mi",
-  "Minnesota": "mn",
-  "Mississippi": "ms",
-  "Missouri": "mo",
-  "Montana": "mt",
-  "Nebraska": "ne",
-  "Nevada": "nv",
+  Alabama: "al",
+  Alaska: "ak",
+  Arizona: "az",
+  Arkansas: "ar",
+  California: "ca",
+  Colorado: "co",
+  Connecticut: "ct",
+  Delaware: "de",
+  Florida: "fl",
+  Georgia: "ga",
+  Hawaii: "hi",
+  Idaho: "id",
+  Illinois: "il",
+  Indiana: "in",
+  Iowa: "ia",
+  Kansas: "ks",
+  Kentucky: "ky",
+  Louisiana: "la",
+  Maine: "me",
+  Maryland: "md",
+  Massachusetts: "ma",
+  Michigan: "mi",
+  Minnesota: "mn",
+  Mississippi: "ms",
+  Missouri: "mo",
+  Montana: "mt",
+  Nebraska: "ne",
+  Nevada: "nv",
   "New Hampshire": "nh",
   "New Jersey": "nj",
   "New Mexico": "nm",
   "New York": "ny",
   "North Carolina": "nc",
   "North Dakota": "nd",
-  "Ohio": "oh",
-  "Oklahoma": "ok",
-  "Oregon": "or",
-  "Pennsylvania": "pa",
+  Ohio: "oh",
+  Oklahoma: "ok",
+  Oregon: "or",
+  Pennsylvania: "pa",
   "Rhode Island": "ri",
   "South Carolina": "sc",
   "South Dakota": "sd",
-  "Tennessee": "tn",
-  "Texas": "tx",
-  "Utah": "ut",
-  "Vermont": "vt",
-  "Virginia": "va",
-  "Washington": "wa",
+  Tennessee: "tn",
+  Texas: "tx",
+  Utah: "ut",
+  Vermont: "vt",
+  Virginia: "va",
+  Washington: "wa",
   "West Virginia": "wv",
-  "Wisconsin": "wi",
-  "Wyoming": "wy",
+  Wisconsin: "wi",
+  Wyoming: "wy",
 };
-
 
 const getStateFromCoords = async (latitude: number, longitude: number) => {
   const geocode = await Location.reverseGeocodeAsync({ latitude, longitude });
@@ -173,7 +172,7 @@ export default function ZipMapScreen() {
       try {
         if (!currentLocation || !currentState || !stateAbbrMap[currentState])
           return;
-          
+
         const abbr = stateAbbrMap[currentState];
         const url = `https://raw.githubusercontent.com/OpenDataDE/State-zip-code-GeoJSON/master/${abbr}_${currentState
           .toLowerCase()
@@ -228,29 +227,26 @@ export default function ZipMapScreen() {
       if (!res.ok) return null;
       const data = await res.json();
       return data.places?.[0]?.state || null;
-      
     } catch {
       return null;
     }
   };
-  
 
   const handleAddZip = async () => {
     const zip = zipInput.trim();
     if (!zip || zip.length < 3 || savedZips.some((z) => z.key === zip)) return;
-  
+
     const zipState = await getStateFromZip(zip);
     if (!zipState) return;
-    console.log('zipState', zipState);
+    console.log("zipState", zipState);
     const abbr = stateAbbrMap[zipState.trim()];
     if (!abbr) return;
-  
+
     const updated = [...savedZips, { key: zip, state: abbr.toUpperCase() }];
     setSavedZips(updated);
     setZipInput("");
     updateFirestoreZips(updated);
   };
-
 
   const handleRemoveZip = async (zip: string) => {
     const updated = savedZips.filter((z) => z.key !== zip);
@@ -260,20 +256,19 @@ export default function ZipMapScreen() {
 
   const toggleZipFromMap = async (zip: string) => {
     if (!currentState) return;
-  
+
     const abbr = stateAbbrMap[currentState.trim()];
     if (!abbr) return;
-  
+
     const stateCode = abbr.toUpperCase();
     const exists = savedZips.some((z) => z.key === zip);
     const updated = exists
       ? savedZips.filter((z) => z.key !== zip)
       : [...savedZips, { key: zip, state: stateCode }];
-  
+
     setSavedZips(updated);
     updateFirestoreZips(updated);
   };
-  
 
   return (
     <View style={styles.container}>
@@ -286,6 +281,47 @@ export default function ZipMapScreen() {
           keyboardType="numeric"
         />
         <Button title="Add" onPress={handleAddZip} />
+      </View>
+
+
+
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          marginBottom: 10,
+        }}
+      >
+             <Button
+        title="Select All ZIPs"
+        onPress={() => {
+          if (!currentState) return;
+
+          const abbr = stateAbbrMap[currentState.trim()];
+          if (!abbr) return;
+
+          const stateCode = abbr.toUpperCase();
+          const allZips = features.map((f) => f.properties.ZCTA5CE10);
+          const uniqueZips = Array.from(
+            new Set([...savedZips.map((z) => z.key), ...allZips])
+          );
+
+          const updated = uniqueZips.map((zip) => ({
+            key: zip,
+            state: stateCode,
+          }));
+
+          setSavedZips(updated);
+          updateFirestoreZips(updated);
+        }}
+      />
+        <Button
+          title="Deselect All ZIPs"
+          onPress={() => {
+            setSavedZips([]);
+            updateFirestoreZips([]);
+          }}
+        />
       </View>
 
       <View style={styles.zipList}>
