@@ -124,8 +124,49 @@ export default function ZipMapScreen() {
     longitude: number;
   } | null>(null);
   const [currentState, setCurrentState] = useState<string | null>(null);
+  const [radius, setRadius] = useState(10);
+  const [newRadius, setNewRadius] = useState("10");
 
-  const radius = 10;
+  const fetchGeoJSON = async (customRadius = radius) => {
+    try {
+      if (!currentLocation || !currentState || !stateAbbrMap[currentState])
+        return;
+
+      const abbr = stateAbbrMap[currentState];
+      const url = `https://raw.githubusercontent.com/OpenDataDE/State-zip-code-GeoJSON/master/${abbr}_${currentState
+        .toLowerCase()
+        .replace(/ /g, "_")}_zip_codes_geo.min.json`;
+
+      const res = await fetch(url);
+      const geo = await res.json();
+
+      const filtered = geo.features.filter((f: GeoFeature) => {
+        const { geometry } = f;
+        let polygons =
+          geometry.type === "Polygon"
+            ? (geometry.coordinates as number[][][])
+            : (geometry.coordinates as number[][][][]).flat();
+
+        return polygons.some((polygon) =>
+          polygon.some(([lng, lat]) => {
+            const dist = haversineDistance(
+              currentLocation.latitude,
+              currentLocation.longitude,
+              lat,
+              lng
+            );
+            return dist <= customRadius;
+          })
+        );
+      });
+
+      setFeatures(filtered);
+    } catch (err) {
+      console.error("GeoJSON error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => setUser(u));
@@ -168,47 +209,6 @@ export default function ZipMapScreen() {
   }, []);
 
   useEffect(() => {
-    const fetchGeoJSON = async () => {
-      try {
-        if (!currentLocation || !currentState || !stateAbbrMap[currentState])
-          return;
-
-        const abbr = stateAbbrMap[currentState];
-        const url = `https://raw.githubusercontent.com/OpenDataDE/State-zip-code-GeoJSON/master/${abbr}_${currentState
-          .toLowerCase()
-          .replace(/ /g, "_")}_zip_codes_geo.min.json`;
-
-        const res = await fetch(url);
-        const geo = await res.json();
-
-        const filtered = geo.features.filter((f: GeoFeature) => {
-          const { geometry } = f;
-          let polygons =
-            geometry.type === "Polygon"
-              ? (geometry.coordinates as number[][][])
-              : (geometry.coordinates as number[][][][]).flat();
-
-          return polygons.some((polygon) =>
-            polygon.some(([lng, lat]) => {
-              const dist = haversineDistance(
-                currentLocation.latitude,
-                currentLocation.longitude,
-                lat,
-                lng
-              );
-              return dist <= radius;
-            })
-          );
-        });
-
-        setFeatures(filtered);
-      } catch (err) {
-        console.error("GeoJSON error:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (currentLocation && currentState) {
       fetchGeoJSON();
     }
@@ -283,8 +283,6 @@ export default function ZipMapScreen() {
         <Button title="Add" onPress={handleAddZip} />
       </View>
 
-
-
       <View
         style={{
           flexDirection: "row",
@@ -292,34 +290,63 @@ export default function ZipMapScreen() {
           marginBottom: 10,
         }}
       >
-             <Button
-        title="Select All ZIPs"
-        onPress={() => {
-          if (!currentState) return;
+        <Button
+          title="Select All ZIPs"
+          onPress={() => {
+            if (!currentState) return;
 
-          const abbr = stateAbbrMap[currentState.trim()];
-          if (!abbr) return;
+            const abbr = stateAbbrMap[currentState.trim()];
+            if (!abbr) return;
 
-          const stateCode = abbr.toUpperCase();
-          const allZips = features.map((f) => f.properties.ZCTA5CE10);
-          const uniqueZips = Array.from(
-            new Set([...savedZips.map((z) => z.key), ...allZips])
-          );
+            const stateCode = abbr.toUpperCase();
+            const allZips = features.map((f) => f.properties.ZCTA5CE10);
+            const uniqueZips = Array.from(
+              new Set([...savedZips.map((z) => z.key), ...allZips])
+            );
 
-          const updated = uniqueZips.map((zip) => ({
-            key: zip,
-            state: stateCode,
-          }));
+            const updated = uniqueZips.map((zip) => ({
+              key: zip,
+              state: stateCode,
+            }));
 
-          setSavedZips(updated);
-          updateFirestoreZips(updated);
-        }}
-      />
+            setSavedZips(updated);
+            updateFirestoreZips(updated);
+          }}
+        />
         <Button
           title="Deselect All ZIPs"
           onPress={() => {
             setSavedZips([]);
             updateFirestoreZips([]);
+          }}
+        />
+      </View>
+
+      <View
+        style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}
+      >
+        <Text style={{ marginRight: 8 }}>Radius (miles):</Text>
+        <TextInput
+          value={newRadius}
+          onChangeText={setNewRadius}
+          keyboardType="numeric"
+          style={{
+            borderWidth: 1,
+            borderColor: "#ccc",
+            padding: 6,
+            width: 60,
+            marginRight: 10,
+          }}
+        />
+        <Button
+          title="Apply Radius"
+          onPress={() => {
+            const parsed = parseFloat(newRadius);
+            if (!isNaN(parsed)) {
+              setRadius(parsed);
+              setLoading(true);
+              fetchGeoJSON(parsed);
+            }
           }}
         />
       </View>
