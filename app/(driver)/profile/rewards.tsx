@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Image, StyleSheet, Modal } from 'react-native';
 import * as Progress from 'react-native-progress';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../../firebaseConfig';
+import { Ionicons } from '@expo/vector-icons';
 
 const ranks = [
   {
@@ -11,7 +12,7 @@ const ranks = [
     maxBags: 499,
     failedLimit: Infinity,
     bagLimit: 50,
-    restrictions: "Cannot order more bags until current operation is completed successfully",
+    restrictions: "Cannot order more bags until current operation is completed successfully.",
     perks: "Cannot order more bags until current operation is completed successfully.",
     image: "https://49f19303af27fa52649830f7470cda8c.cdn.bubble.io/f1745483287099x211019496407986780/Sergeant.png",
   },
@@ -22,6 +23,7 @@ const ranks = [
     failedLimit: 20,
     bagLimit: 100,
     perks: "Can order more bags before completing the current operation.",
+    requirements: "No more than 10 failed missions in the last 100 missions.",
     image: "https://49f19303af27fa52649830f7470cda8c.cdn.bubble.io/f1744632963112x260922741835636360/chevron.png",
   },
   {
@@ -31,6 +33,7 @@ const ranks = [
     failedLimit: 5,
     bagLimit: 200,
     perks: "Unlocks mission bonuses.",
+    requirements: "No more than 5 failed missions in the last 100 missions.",
     image: "https://49f19303af27fa52649830f7470cda8c.cdn.bubble.io/f1745483312916x330002207663850050/Captain.png",
   },
   {
@@ -40,27 +43,23 @@ const ranks = [
     failedLimit: 5,
     bagLimit: 500,
     perks: "Gains access to the distribution program.",
+    requirements: "No more than 5 failed missions in the last 100 missions.",
     image: "https://49f19303af27fa52649830f7470cda8c.cdn.bubble.io/f1745485247401x540054289440982100/general.png",
   }
 ];
 
 const RewardsScreen: React.FC = () => {
-  const [tooltipVisible, setTooltipVisible] = useState<string | null>(null);
   const [completedMissions, setCompletedMissions] = useState<number>(0);
   const [failedMissions, setFailedMissions] = useState<number>(0);
   const [rank, setRank] = useState<string>('Recruit');
   const [nextRank, setNextRank] = useState<string>('Sergeant');
   const [rankImage, setRankImage] = useState<string | null>(null);
+  const [tooltipVisible, setTooltipVisible] = useState<null | string>(null);
 
-  const getTargetMissions = () => {
-    const next = ranks.find(r => r.name === nextRank);
-    return next ? next.minBags : completedMissions;
-  };
-
-  const targetMissions = getTargetMissions();
+  const targetMissions = ranks.find(r => r.name === nextRank)?.minBags || 1;
 
   useEffect(() => {
-    const fetchUserRank = async () => {
+    const fetchData = async () => {
       const user = auth.currentUser;
       if (!user) return;
 
@@ -68,74 +67,54 @@ const RewardsScreen: React.FC = () => {
       const userSnap = await getDoc(userDocRef);
 
       if (userSnap.exists()) {
-        const userRank = userSnap.data()?.rank;
-        if (userRank) {
-          setRank(userRank);
-          const current = ranks.find(r => r.name === userRank) || ranks[0];
-          const currentIndex = ranks.indexOf(current);
-          const next = ranks[currentIndex + 1] || null;
-          setNextRank(next?.name || 'Max Rank');
-          setRankImage(current.image);
-        }
+        const data = userSnap.data();
+        const userRank = data.rank || 'Recruit';
+        setCompletedMissions(data.completedMissionsCount || 0);
+        setFailedMissions(data.failedMissionsCount || 0);
+
+        setRank(userRank);
+        const current = ranks.find(r => r.name === userRank) || ranks[0];
+        const currentIndex = ranks.indexOf(current);
+        const next = ranks[currentIndex + 1] || null;
+        setNextRank(next?.name || 'Max Rank');
+        setRankImage(current.image);
       }
     };
 
-    const fetchMissionStats = async () => {
-      const user = auth.currentUser;
-      if (!user) return;
-
-      const missionsRef = collection(db, 'driver_missions');
-      const userDriverRef = doc(db, `users_driver/${user.uid}`);
-
-      const completedQuery = query(
-        missionsRef,
-        where('userDriverId', '==', userDriverRef),
-        where('status', '==', 'completed')
-      );
-      const completedSnapshot = await getDocs(completedQuery);
-      setCompletedMissions(completedSnapshot.size);
-
-      const failedQuery = query(
-        missionsRef,
-        where('userDriverId', '==', userDriverRef),
-        where('status', '==', 'failed')
-      );
-      const failedSnapshot = await getDocs(failedQuery);
-      setFailedMissions(failedSnapshot.size);
-    };
-
-    fetchUserRank();
-    fetchMissionStats();
+    fetchData();
   }, []);
-
-    //for testing
-    // useEffect(() => {
-    //   const test = async () => {
-    //     const completedCount = 300; // Тестовое количество выполненных заданий
-    //     const failedCount = 3;      // Тестовое количество провалов
-    //     const manualRank = "Recruit"; // Укажи нужный ранг: Recruit, Sergeant, Captain, General
-    
-    //     setCompletedMissions(completedCount);
-    //     setFailedMissions(failedCount);
-    
-    //     const current = ranks.find(r => r.name === manualRank) || ranks[0];
-    //     const currentIndex = ranks.indexOf(current);
-    //     const next = ranks[currentIndex + 1] || null;
-    
-    //     setRank(current.name);
-    //     setNextRank(next?.name || "Max Rank");
-    //     setRankImage(current.image);
-    //   };
-    
-    //   test();
-    // }, []);
-    
 
   const progress = completedMissions / targetMissions;
   const nextRankImage = ranks.find(r => r.name === nextRank)?.image || null;
 
-  const toggleTooltip = (key: string): void => {
-    setTooltipVisible(tooltipVisible === key ? null : key);
+  const openTooltip = (name: string) => setTooltipVisible(name);
+  const closeTooltip = () => setTooltipVisible(null);
+
+  const renderTooltip = (rankName: string) => {
+    const info = ranks.find(r => r.name === rankName);
+    if (!info) return null;
+
+    return (
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={tooltipVisible === rankName}
+        onRequestClose={closeTooltip}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.tooltipTitle}>{info.name} Details</Text>
+            {info.perks && <Text style={styles.tooltipText}>🟢 Perks: {info.perks}</Text>}
+            {info.requirements && <Text style={styles.tooltipText}>📌 Requirements: {info.requirements}</Text>}
+            {info.restrictions && <Text style={styles.tooltipText}>🚫 Restrictions: {info.restrictions}</Text>}
+            {info.bagLimit && <Text style={styles.tooltipText}>📦 Bag Limit: {info.bagLimit}</Text>}
+            <TouchableOpacity onPress={closeTooltip} style={styles.closeButton}>
+              <Text style={styles.closeButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
   };
 
   return (
@@ -144,41 +123,32 @@ const RewardsScreen: React.FC = () => {
 
       <View style={styles.rankRow}>
         <Text style={styles.rank}>{rank}</Text>
+        <TouchableOpacity onPress={() => openTooltip(rank)}>
+          <Ionicons name="help-circle-outline" size={20} color="gray" />
+        </TouchableOpacity>
       </View>
 
       {rankImage && (
         <Image source={{ uri: rankImage }} style={styles.rankImage} />
       )}
 
-      {tooltipVisible === rank && (
-        <View style={styles.tooltip}>
-          <Text style={styles.tooltipText}>
-            {ranks.find(r => r.name === rank)?.perks}
-          </Text>
-        </View>
-      )}
+      {renderTooltip(rank)}
 
       {nextRank !== "Max Rank" ? (
         <>
           <Text style={styles.subTitle}>Your progress to the next rank:</Text>
 
-          <TouchableOpacity
-            style={styles.rankRow}
-            onPress={() => toggleTooltip(nextRank)}
-          >
+          <View style={styles.rankRow}>
             <Text style={styles.rank}>{nextRank}</Text>
             {nextRankImage && (
               <Image source={{ uri: nextRankImage }} style={styles.nextRankImage} />
             )}
-          </TouchableOpacity>
+            <TouchableOpacity onPress={() => openTooltip(nextRank)}>
+              <Ionicons name="help-circle-outline" size={20} color="gray" />
+            </TouchableOpacity>
+          </View>
 
-          {tooltipVisible === nextRank && (
-            <View style={styles.tooltip}>
-              <Text style={styles.tooltipText}>
-                {ranks.find(r => r.name === nextRank)?.perks}
-              </Text>
-            </View>
-          )}
+          {renderTooltip(nextRank)}
 
           <View style={styles.progressInfo}>
             <Text style={styles.completedText}>
@@ -250,17 +220,6 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
     marginLeft: 8,
   },
-  tooltip: {
-    backgroundColor: '#eee',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 10,
-    marginTop: 5,
-  },
-  tooltipText: {
-    fontSize: 14,
-    color: '#333',
-  },
   progressInfo: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -277,6 +236,39 @@ const styles = StyleSheet.create({
     marginTop: 20,
     color: '#d32f2f',
     textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20,
+    width: '85%',
+  },
+  tooltipTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  tooltipText: {
+    fontSize: 14,
+    marginBottom: 8,
+    color: '#333',
+  },
+  closeButton: {
+    marginTop: 10,
+    backgroundColor: '#4CAF50',
+    padding: 10,
+    borderRadius: 6,
+    alignSelf: 'center',
+  },
+  closeButtonText: {
+    color: 'white',
+    fontWeight: '600',
   },
 });
 

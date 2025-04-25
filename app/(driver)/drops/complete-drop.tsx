@@ -17,6 +17,12 @@ import {
   updateDoc,
   GeoPoint,
   getDoc,
+  collection,
+  getDocs,
+  query,
+  where,
+  orderBy,
+  limit,
 } from "firebase/firestore";
 import { app } from "../../../firebaseConfig";
 
@@ -60,7 +66,7 @@ const CompleteDrop = () => {
       Alert.alert("Error", "Please take a picture and ensure location is available.");
       return;
     }
-
+  
     setIsSubmitting(true);
     try {
       // 1. Загрузить фото в Cloudinary
@@ -71,7 +77,7 @@ const CompleteDrop = () => {
         type: "image/jpeg",
       } as any);
       formData.append("upload_preset", "drop_photos");
-
+  
       const uploadResponse = await axios.post(
         "https://api.cloudinary.com/v1_1/dae8c4cok/image/upload",
         formData,
@@ -82,21 +88,20 @@ const CompleteDrop = () => {
           },
         }
       );
-
+  
       const photoUrl = uploadResponse.data.secure_url;
       if (!photoUrl) throw new Error("No photo URL returned");
-
-      // 2. Получить ссылку на миссию и её данные
+  
+      // 2. Получить данные миссии
       const missionRef = doc(db, "driver_missions", missionId);
       const missionSnap = await getDoc(missionRef);
       if (!missionSnap.exists()) throw new Error("Mission not found");
-
       const missionData = missionSnap.data();
       const driverCampaignRef = missionData.driverCampaignId;
-
-      if (!driverCampaignRef?.id) throw new Error("driverCampaignId missing in mission");
-
-      // 3. Обновить Firestore
+      const userDriverRef = missionData.userDriverId;
+      if (!driverCampaignRef?.id || !userDriverRef?.id) throw new Error("Missing references in mission");
+  
+      // 3. Обновить статус миссии
       await updateDoc(missionRef, {
         status: "completed",
         endMission: new GeoPoint(
@@ -105,14 +110,78 @@ const CompleteDrop = () => {
         ),
         photo: photoUrl,
       });
+  
+      // 4. Получить и обновить статистику водителя
+      const userDriverSnap = await getDoc(userDriverRef);
+      if (!userDriverSnap.exists()) throw new Error("Driver not found");
 
+      const userDriverData = userDriverSnap.data() as {
+        completedMissionsCount: number;
+        uncompletedMissionsCount: number;
+        earnings: number;
+        rank: string;
+      };
+      
+      const {
+        completedMissionsCount = 0,
+        uncompletedMissionsCount = 0,
+        earnings = 0,
+        rank = "Recruit",
+      } = userDriverData;
+  
+      const newCompleted = completedMissionsCount + 1;
+      const newUncompleted = Math.max(uncompletedMissionsCount - 1, 0);
+      const newEarnings = earnings + 1;
+  
+      let newRank = rank;
+  
+      const checkRankUpgrade = async () => {
+        const rankConditions = {
+          Recruit: { next: "Sergeant", required: 500, maxFailed: 9 },
+          Sergeant: { next: "Captain", required: 1000, maxFailed: 4 },
+          Captain: { next: "General", required: 5000, maxFailed: 4 },
+        } as const;
+      
+        const condition = rankConditions[rank as keyof typeof rankConditions];
+        if (!condition) return;
+      
+        if (newCompleted > condition.required) {
+          const missionsQuerySnap = await getDocs(
+            query(
+              collection(db, "driver_missions"),
+              where("userDriverId", "==", userDriverRef),
+              orderBy("timestamp", "desc"),
+              limit(100)
+            )
+          );
+      
+          const last100 = missionsQuerySnap.docs.map(doc => doc.data());
+          const failedCount = last100.filter(m => m.status === "failed").length;
+      
+          if (failedCount <= condition.maxFailed) {
+            newRank = condition.next;
+          }
+        }
+      };
+      
+  
+      await checkRankUpgrade();
+  
+      await updateDoc(userDriverRef, {
+        completedMissionsCount: newCompleted,
+        uncompletedMissionsCount: newUncompleted,
+        earnings: newEarnings,
+        rank: newRank,
+      });
+  
       Alert.alert("Success", "Mission completed successfully");
-
-      // 4. Навигация с передачей campaignId
+  
+      // 5. Навигация
       router.push({
         pathname: "/drops/missions",
         params: { driverCampaignId: driverCampaignRef.id },
       });
+  
     } catch (error: any) {
       console.error("Error completing mission:", error);
       Alert.alert(
@@ -123,6 +192,7 @@ const CompleteDrop = () => {
       setIsSubmitting(false);
     }
   };
+  
 
   if (!permission?.granted) {
     return (

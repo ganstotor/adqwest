@@ -38,6 +38,7 @@ export default function AuthScreen() {
           rank: 'Recruit',
           completedMissionsCount: 0,
           uncompletedMissionsCount: 0,
+          failedMissionsCount: 0,
         });
       } else {
         await signInWithEmailAndPassword(auth, email, password);

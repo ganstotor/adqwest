@@ -95,7 +95,7 @@ const haversineDistance = (
   lon2: number
 ): number => {
   const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const R = 6371;
+  const R = 3958.8; // Радиус Земли в милях
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
   const a =
@@ -276,6 +276,32 @@ export default function ZipMapScreen() {
         />
         <Button title="Add" onPress={handleAddZip} />
       </View>
+
+      <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 10 }}>
+  <Button
+    title="Select All ZIPs"
+    onPress={() => {
+      if (!currentState) return;
+      const abbr = stateAbbrMap[currentState.trim()];
+      if (!abbr) return;
+      const stateCode = abbr.toUpperCase();
+      const allZips = features.map((f) => f.properties.ZCTA5CE10);
+      const uniqueZips = Array.from(new Set([...savedZips.map(z => z.key), ...allZips]));
+      const updated = uniqueZips.map(zip => ({ key: zip, state: stateCode }));
+      setSavedZips(updated);
+      updateFirestoreZips(updated);
+    }}
+  />
+  <Button
+    title="Deselect All ZIPs"
+    onPress={() => {
+      setSavedZips([]);
+      updateFirestoreZips([]);
+    }}
+  />
+</View>
+
+
       <View style={styles.zipList}>
         {savedZips.map((item) => (
           <View key={item.key} style={styles.zipItem}>
