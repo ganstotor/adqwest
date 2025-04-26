@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -113,6 +113,68 @@ const getStateFromCoords = async (latitude: number, longitude: number) => {
   return null;
 };
 
+const findNearbyStates = async (
+  center: { latitude: number; longitude: number },
+  radius: number,
+  currentState: string | null
+) => {
+  const directions = [
+    { latOffset: radius / 69, lonOffset: 0 }, // север
+    { latOffset: -radius / 69, lonOffset: 0 }, // юг
+    {
+      latOffset: 0,
+      lonOffset: radius / (Math.cos((center.latitude * Math.PI) / 180) * 69),
+    }, // восток
+    {
+      latOffset: 0,
+      lonOffset: -radius / (Math.cos((center.latitude * Math.PI) / 180) * 69),
+    }, // запад
+    {
+      latOffset: radius / 69 / Math.sqrt(2),
+      lonOffset:
+        radius /
+        (Math.cos((center.latitude * Math.PI) / 180) * 69) /
+        Math.sqrt(2),
+    }, // северо-восток
+    {
+      latOffset: radius / 69 / Math.sqrt(2),
+      lonOffset:
+        -radius /
+        (Math.cos((center.latitude * Math.PI) / 180) * 69) /
+        Math.sqrt(2),
+    }, // северо-запад
+    {
+      latOffset: -radius / 69 / Math.sqrt(2),
+      lonOffset:
+        radius /
+        (Math.cos((center.latitude * Math.PI) / 180) * 69) /
+        Math.sqrt(2),
+    }, // юго-восток
+    {
+      latOffset: -radius / 69 / Math.sqrt(2),
+      lonOffset:
+        -radius /
+        (Math.cos((center.latitude * Math.PI) / 180) * 69) /
+        Math.sqrt(2),
+    }, // юго-запад
+  ];
+
+  const states = new Set<string>();
+
+  for (const dir of directions) {
+    const lat = center.latitude + dir.latOffset;
+    const lon = center.longitude + dir.lonOffset;
+    const region = await getStateFromCoords(lat, lon);
+    if (region) states.add(region);
+  }
+
+  if (currentState) {
+    states.add(currentState); // Обязательно добавляем свой штат
+  }
+
+  return Array.from(states);
+};
+
 export default function ZipMapScreen() {
   const [features, setFeatures] = useState<GeoFeature[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,47 +186,111 @@ export default function ZipMapScreen() {
     longitude: number;
   } | null>(null);
   const [currentState, setCurrentState] = useState<string | null>(null);
-  const [radius, setRadius] = useState(10);
-  const [newRadius, setNewRadius] = useState("10");
+  const [radius, setRadius] = useState<number | null>(null);
+  const [newRadius, setNewRadius] = useState<string>("");
+  const [userDataLoaded, setUserDataLoaded] = useState(false);
+  
 
-  const fetchGeoJSON = async (customRadius = radius) => {
-    try {
-      if (!currentLocation || !currentState || !stateAbbrMap[currentState])
-        return;
+  const getBoundingRegion = () => {
+    if (features.length === 0) return null;
 
-      const abbr = stateAbbrMap[currentState];
-      const url = `https://raw.githubusercontent.com/OpenDataDE/State-zip-code-GeoJSON/master/${abbr}_${currentState
-        .toLowerCase()
-        .replace(/ /g, "_")}_zip_codes_geo.min.json`;
+    let minLat = 90,
+      maxLat = -90,
+      minLng = 180,
+      maxLng = -180;
 
-      const res = await fetch(url);
-      const geo = await res.json();
+    features.forEach((feature) => {
+      const polygons =
+        feature.geometry.type === "Polygon"
+          ? (feature.geometry.coordinates as number[][][])
+          : (feature.geometry.coordinates as number[][][][]).flat();
 
-      const filtered = geo.features.filter((f: GeoFeature) => {
-        const { geometry } = f;
-        let polygons =
-          geometry.type === "Polygon"
-            ? (geometry.coordinates as number[][][])
-            : (geometry.coordinates as number[][][][]).flat();
-
-        return polygons.some((polygon) =>
-          polygon.some(([lng, lat]) => {
-            const dist = haversineDistance(
-              currentLocation.latitude,
-              currentLocation.longitude,
-              lat,
-              lng
-            );
-            return dist <= customRadius;
-          })
-        );
+      polygons.forEach((polygon) => {
+        polygon.forEach(([lng, lat]) => {
+          minLat = Math.min(minLat, lat);
+          maxLat = Math.max(maxLat, lat);
+          minLng = Math.min(minLng, lng);
+          maxLng = Math.max(maxLng, lng);
+        });
       });
+    });
 
-      setFeatures(filtered);
+    const midLat = (minLat + maxLat) / 2;
+    const midLng = (minLng + maxLng) / 2;
+    const latDelta = (maxLat - minLat) * 1.5; // небольшой отступ
+    const lngDelta = (maxLng - minLng) * 1.5;
+
+    return {
+      latitude: midLat,
+      longitude: midLng,
+      latitudeDelta: Math.max(latDelta, 0.05), // чтобы не слишком приближаться
+      longitudeDelta: Math.max(lngDelta, 0.05),
+    };
+  };
+
+  const boundingRegion = useMemo(() => getBoundingRegion(), [features]);
+
+  const fetchGeoJSON = async (customRadiusParam?: number | null) => {
+    const radiusToUse = customRadiusParam ?? radius;
+    if (!currentLocation || !radiusToUse) return;
+    try {
+      setLoading(true);
+
+      const nearbyStates = await findNearbyStates(
+        currentLocation,
+        radiusToUse,
+        currentState
+      );
+
+      const allFeatures: GeoFeature[] = [];
+
+      for (const state of nearbyStates) {
+        const abbr = stateAbbrMap[state];
+        if (!abbr) continue;
+
+        const url = `https://raw.githubusercontent.com/OpenDataDE/State-zip-code-GeoJSON/master/${abbr}_${state
+          .toLowerCase()
+          .replace(/ /g, "_")}_zip_codes_geo.min.json`;
+        const res = await fetch(url);
+        const geo = await res.json();
+
+        const filtered = geo.features.filter((f: GeoFeature) => {
+          const polygons =
+            f.geometry.type === "Polygon"
+              ? (f.geometry.coordinates as number[][][])
+              : (f.geometry.coordinates as number[][][][]).flat();
+
+          return polygons.some((polygon) =>
+            polygon.some(
+              ([lng, lat]) =>
+                haversineDistance(
+                  currentLocation.latitude,
+                  currentLocation.longitude,
+                  lat,
+                  lng
+                ) <= radiusToUse
+            )
+          );
+        });
+
+        allFeatures.push(...filtered);
+      }
+
+      setFeatures(allFeatures);
     } catch (err) {
       console.error("GeoJSON error:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveRadiusToFirestore = async () => {
+    if (user) {
+      const parsedRadius = Math.min(Number(newRadius), 50); // защита на 50
+      const ref = doc(db, "users_driver", user.uid);
+      await setDoc(ref, { milesRadius: parsedRadius }, { merge: true });
+      setRadius(parsedRadius);
+      fetchGeoJSON(parsedRadius); // передаем явный радиус
     }
   };
 
@@ -182,6 +308,11 @@ export default function ZipMapScreen() {
         if (Array.isArray(data.zipCodes)) {
           setSavedZips(data.zipCodes);
         }
+        if (data.milesRadius) {
+          setRadius(data.milesRadius);
+          setNewRadius(String(data.milesRadius));
+        }
+        setUserDataLoaded(true);
       }
     });
     return unsubscribe;
@@ -209,10 +340,10 @@ export default function ZipMapScreen() {
   }, []);
 
   useEffect(() => {
-    if (currentLocation && currentState) {
-      fetchGeoJSON();
+    if (currentLocation && currentState && userDataLoaded) {
+      fetchGeoJSON(); // теперь только когда radius точно загружен из базы
     }
-  }, [currentLocation, currentState]);
+  }, [currentLocation, currentState, userDataLoaded]);
 
   const updateFirestoreZips = async (updated: ZipListItem[]) => {
     if (user) {
@@ -327,28 +458,31 @@ export default function ZipMapScreen() {
       >
         <Text style={{ marginRight: 8 }}>Radius (miles):</Text>
         <TextInput
+          style={[styles.input, { width: 80 }]}
           value={newRadius}
-          onChangeText={setNewRadius}
-          keyboardType="numeric"
-          style={{
-            borderWidth: 1,
-            borderColor: "#ccc",
-            padding: 6,
-            width: 60,
-            marginRight: 10,
-          }}
-        />
-        <Button
-          title="Apply Radius"
-          onPress={() => {
-            const parsed = parseFloat(newRadius);
-            if (!isNaN(parsed)) {
-              setRadius(parsed);
-              setLoading(true);
-              fetchGeoJSON(parsed);
+          onChangeText={(text) => {
+            const num = parseInt(text, 10);
+            if (isNaN(num)) {
+              setNewRadius(""); // если пусто
+            } else if (num <= 50) {
+              setNewRadius(String(num)); // разрешаем только до 50
+            } else {
+              setNewRadius("50"); // если больше 50, ставим 50
             }
           }}
+          keyboardType="numeric"
         />
+        <TouchableOpacity
+          style={{
+            backgroundColor: "#007BFF",
+            padding: 8,
+            marginLeft: 10,
+            borderRadius: 5,
+          }}
+          onPress={saveRadiusToFirestore}
+        >
+          <Text style={{ color: "white" }}>Apply</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.zipList}>
@@ -367,12 +501,14 @@ export default function ZipMapScreen() {
       ) : (
         <MapView
           style={styles.map}
-          initialRegion={{
-            latitude: currentLocation.latitude,
-            longitude: currentLocation.longitude,
-            latitudeDelta: 0.2,
-            longitudeDelta: 0.2,
-          }}
+          region={
+            boundingRegion ?? {
+              latitude: currentLocation.latitude,
+              longitude: currentLocation.longitude,
+              latitudeDelta: 0.2,
+              longitudeDelta: 0.2,
+            }
+          }
           showsUserLocation={true}
         >
           {features.map((feature) => {
