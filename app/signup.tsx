@@ -39,6 +39,7 @@ export default function AuthScreen() {
           completedMissionsCount: 0,
           uncompletedMissionsCount: 0,
           failedMissionsCount: 0,
+          milesRadius: 10,
         });
       } else {
         await signInWithEmailAndPassword(auth, email, password);
