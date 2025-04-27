@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  ScrollView,
 } from "react-native";
 import MapboxGL from "@rnmapbox/maps";
 import { onAuthStateChanged, User } from "firebase/auth";
@@ -188,7 +189,7 @@ export default function ZipMapScreen() {
   const [currentState, setCurrentState] = useState<string | null>(null);
   const [radius, setRadius] = useState<number | null>(null);
   const [newRadius, setNewRadius] = useState<string>("");
-  
+  const [showPopup, setShowPopup] = useState(false);
 
   const getBoundingRegion = () => {
     if (features.length === 0) return null;
@@ -414,16 +415,75 @@ export default function ZipMapScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.inputRow}>
-        <TextInput
-          style={styles.input}
-          placeholder="Enter ZIP"
-          value={zipInput}
-          onChangeText={setZipInput}
-          keyboardType="numeric"
-        />
-        <Button title="Add" onPress={handleAddZip} />
-      </View>
+      {showPopup && (
+        <View style={styles.popup}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginBottom: 10,
+            }}
+          >
+            <Text style={{ marginRight: 8 }}>Radius (miles):</Text>
+            <TextInput
+              style={[styles.input, { width: 80 }]}
+              value={newRadius}
+              onChangeText={(text) => {
+                const num = parseInt(text, 10);
+                if (isNaN(num)) {
+                  setNewRadius(""); // если пусто
+                } else if (num <= 50) {
+                  setNewRadius(String(num)); // разрешаем только до 50
+                } else {
+                  setNewRadius("50"); // если больше 50, ставим 50
+                }
+              }}
+              keyboardType="numeric"
+            />
+            <TouchableOpacity
+              style={{
+                backgroundColor: "#007BFF",
+                padding: 8,
+                marginLeft: 10,
+                borderRadius: 5,
+              }}
+              onPress={saveRadiusToFirestore}
+            >
+              <Text style={{ color: "white" }}>Apply</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter ZIP"
+              value={zipInput}
+              onChangeText={setZipInput}
+              keyboardType="numeric"
+            />
+            <Button title="Add" onPress={handleAddZip} />
+          </View>
+          <View style={styles.zipScrollList}>
+            <ScrollView
+              style={{ maxHeight: "90%", marginTop: 10, marginBottom: 10 }}
+              horizontal={false}
+              contentContainerStyle={{
+                flexDirection: "row",
+                flexWrap: "wrap",
+                gap: 8,
+              }}
+            >
+              {savedZips.map((item) => (
+                <View key={item.key} style={styles.zipItem}>
+                  <Text style={styles.zipText}>{item.key}</Text>
+                  <TouchableOpacity onPress={() => handleRemoveZip(item.key)}>
+                    <Icon name="close-circle" size={18} color="red" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      )}
 
       <View
         style={{
@@ -432,75 +492,51 @@ export default function ZipMapScreen() {
           marginBottom: 10,
         }}
       >
-        <Button
-          title="Select All ZIPs"
+        <TouchableOpacity
+          style={styles.smallButton}
           onPress={() => {
             if (!currentState) return;
+
             const abbr = stateAbbrMap[currentState.trim()];
             if (!abbr) return;
+
             const stateCode = abbr.toUpperCase();
             const allZips = features.map((f) => f.properties.ZCTA5CE10);
             const uniqueZips = Array.from(
               new Set([...savedZips.map((z) => z.key), ...allZips])
             );
+
             const updated = uniqueZips.map((zip) => ({
               key: zip,
               state: stateCode,
             }));
+
             setSavedZips(updated);
             updateFirestoreZips(updated);
           }}
-        />
-        <Button
-          title="Deselect All ZIPs"
+        >
+          <Text style={styles.smallButtonText}>Select All ZIPs</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.smallButton}
           onPress={() => {
             setSavedZips([]);
             updateFirestoreZips([]);
           }}
-        />
-      </View>
-
-      <View
-        style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}
-      >
-        <Text style={{ marginRight: 8 }}>Radius (miles):</Text>
-        <TextInput
-          style={[styles.input, { width: 80 }]}
-          value={newRadius}
-          onChangeText={(text) => {
-            const num = parseInt(text, 10);
-            if (isNaN(num)) {
-              setNewRadius(""); // если пусто
-            } else if (num <= 50) {
-              setNewRadius(String(num)); // разрешаем только до 50
-            } else {
-              setNewRadius("50"); // если больше 50, ставим 50
-            }
-          }}
-          keyboardType="numeric"
-        />
-        <TouchableOpacity
-          style={{
-            backgroundColor: "#007BFF",
-            padding: 8,
-            marginLeft: 10,
-            borderRadius: 5,
-          }}
-          onPress={saveRadiusToFirestore}
         >
-          <Text style={{ color: "white" }}>Apply</Text>
+          <Text style={styles.smallButtonText}>Deselect All ZIPs</Text>
         </TouchableOpacity>
-      </View>
-
-      <View style={styles.zipList}>
-        {savedZips.map((item) => (
-          <View key={item.key} style={styles.zipItem}>
-            <Text style={styles.zipText}>{item.key}</Text>
-            <TouchableOpacity onPress={() => handleRemoveZip(item.key)}>
-              <Icon name="close-circle" size={18} color="red" />
-            </TouchableOpacity>
-          </View>
-        ))}
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() => setShowPopup(!showPopup)}
+        >
+          <Icon
+            name={showPopup ? "close" : "options"}
+            size={30}
+            color="#007BFF"
+          />
+        </TouchableOpacity>
       </View>
       {loading || !currentLocation || radius == null ? (
         <ActivityIndicator size="large" />
@@ -564,7 +600,6 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   input: { flex: 1, borderBottomWidth: 1, borderColor: "#ccc", padding: 6 },
-  zipList: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 10 },
   zipItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -575,4 +610,46 @@ const styles = StyleSheet.create({
   },
   zipText: { marginRight: 6, fontSize: 14 },
   map: { flex: 1, borderRadius: 12 },
+
+  iconButton: {
+    right: 20,
+    backgroundColor: "white",
+    padding: 8,
+    borderRadius: 20,
+    elevation: 5,
+  },
+  popup: {
+    position: "absolute",
+    top: 70,
+    height: "90%",
+    right: 10,
+    left: 10,
+    backgroundColor: "white",
+    borderRadius: 10,
+    padding: 15,
+    elevation: 5,
+    zIndex: 9,
+  },
+
+  zipScrollList: {
+    marginTop: 10,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 10,
+  },
+
+  smallButton: {
+    backgroundColor: "#007BFF",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  smallButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "500",
+  },
 });
