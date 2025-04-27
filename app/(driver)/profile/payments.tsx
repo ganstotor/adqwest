@@ -73,6 +73,10 @@ export default function PaymentsScreen() {
   };
 
   const handleSaveBankInfo = async () => {
+    if (accountNumber.length < 6) {
+      alert('Account Number must be at least 6 digits long');
+      return;
+    }
     if (!validateBankInfo() || !currentUserUID) return;
 
     try {

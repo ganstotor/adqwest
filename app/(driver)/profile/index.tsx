@@ -4,11 +4,17 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { auth, db } from '../../../firebaseConfig';
 import { doc, getDoc } from 'firebase/firestore';
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { FontAwesome } from '@expo/vector-icons';
+
+const ranks = [
+  { name: "Recruit", image: "https://49f19303af27fa52649830f7470cda8c.cdn.bubble.io/f1745483287099x211019496407986780/Sergeant.png" },
+  { name: "Sergeant", image: "https://49f19303af27fa52649830f7470cda8c.cdn.bubble.io/f1744632963112x260922741835636360/chevron.png" },
+  { name: "Captain", image: "https://49f19303af27fa52649830f7470cda8c.cdn.bubble.io/f1745483312916x330002207663850050/Captain.png" },
+  { name: "General", image: "https://49f19303af27fa52649830f7470cda8c.cdn.bubble.io/f1745485247401x540054289440982100/general.png" }
+];
 
 const ProfileScreen = () => {
   const router = useRouter();
-  const [userData, setUserData] = useState<{ name: string; avatar?: string; rating: number } | null>(null);
+  const [userData, setUserData] = useState<{ name: string; avatar?: string; rank?: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
 
@@ -34,7 +40,7 @@ const ProfileScreen = () => {
       setUserData({
         name: data.name || 'No name',
         avatar: data.avatar,
-        rating: data.rating || 0,
+        rank: data.rank, // предполагаем, что поле rank есть в users_driver
       });
     }
     setLoading(false);
@@ -54,12 +60,15 @@ const ProfileScreen = () => {
     );
   }
 
+  // Найти ранг в массиве
+  const userRank = ranks.find(r => r.name === userData.rank);
+
   return (
     <View style={styles.container}>
       <View style={styles.avatarWrapper}>
         {userData.avatar ? (
           <Image
-            key={userData.avatar} // заставляет пересоздать компонент при обновлении URL
+            key={userData.avatar}
             source={{ uri: userData.avatar }}
             style={styles.avatar}
           />
@@ -70,38 +79,28 @@ const ProfileScreen = () => {
         )}
       </View>
 
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => router.push("/(driver)/profile/settings")}
-      >
+      {/* Отображение ранга */}
+      {userRank && (
+        <View style={styles.rankContainer}>
+          <Text style={styles.rankText}>{userRank.name}</Text>
+          <Image source={{ uri: userRank.image }} style={styles.rankIcon} />
+        </View>
+      )}
+
+      {/* Кнопки */}
+      <TouchableOpacity style={styles.button} onPress={() => router.push("/(driver)/profile/settings")}>
         <Text style={styles.buttonText}>Settings</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => router.push("/(driver)/profile/rewards")}
-      >
+      <TouchableOpacity style={styles.button} onPress={() => router.push("/(driver)/profile/rewards")}>
         <Text style={styles.buttonText}>Rewards</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => router.push("/(driver)/profile/payments")}
-      >
+      <TouchableOpacity style={styles.button} onPress={() => router.push("/(driver)/profile/payments")}>
         <Text style={styles.buttonText}>Earnings</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => router.push("/(driver)/profile/statistic")}
-      >
-        <Text style={styles.buttonText}>Statistic</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.logOut}
-        onPress={() => auth.signOut()}
-      >
+      <TouchableOpacity style={styles.logOut} onPress={() => auth.signOut()}>
         <Text style={styles.buttonText}>Log out</Text>
       </TouchableOpacity>
     </View>
@@ -124,7 +123,7 @@ const styles = StyleSheet.create({
     borderColor: '#aaa',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 10,
     overflow: 'hidden',
   },
   avatar: {
@@ -142,14 +141,18 @@ const styles = StyleSheet.create({
     color: '#777',
     fontSize: 14,
   },
-  name: {
-    fontSize: 22,
-    fontWeight: "bold",
-    marginBottom: 10,
-  },
-  starRow: {
+  rankContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 20,
+  },
+  rankIcon: {
+    width: 24,
+    height: 24,
+  },
+  rankText: {
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   button: {
     backgroundColor: "#007bff",
