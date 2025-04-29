@@ -93,35 +93,43 @@ export default function OrderBags() {
       const userDriverRef = doc(db, "users_driver", userId);
 
       // Проверяем, существует ли уже driver_campaign с такой парой campaignId и userDriverId
-      const driverCampaignQuery = collection(db, "driver_campaigns");
-      const existingSnap = await getDocs(
-        query(
-          driverCampaignQuery,
-          where("campaignId", "==", campaignRef),
-          where("userDriverId", "==", userDriverRef)
-        )
-      );
+      // const driverCampaignQuery = collection(db, "driver_campaigns");
+      // const existingSnap = await getDocs(
+      //   query(
+      //     driverCampaignQuery,
+      //     where("campaignId", "==", campaignRef),
+      //     where("userDriverId", "==", userDriverRef)
+      //   )
+      // );
 
-      if (!existingSnap.empty) {
-        // Если такая запись существует — обновляем количество сумок
-        const docRef = existingSnap.docs[0].ref;
-        const existingData = existingSnap.docs[0].data();
-        const newBagsCount = (existingData.bagsCount || 0) + selectedBags;
+      // if (!existingSnap.empty) {
+      //   // Если такая запись существует — обновляем количество сумок
+      //   const docRef = existingSnap.docs[0].ref;
+      //   const existingData = existingSnap.docs[0].data();
+      //   const newBagsCount = (existingData.bagsCount || 0) + selectedBags;
 
-        await updateDoc(docRef, {
-          bagsCount: newBagsCount,
-          deliveryType: deliveryOption, // можно обновить или не обновлять — на твое усмотрение
-        });
-      } else {
-        // Если нет — создаем новую запись
-        await addDoc(collection(db, "driver_campaigns"), {
-          bagsCount: selectedBags,
-          campaignId: campaignRef,
-          userDriverId: userDriverRef,
-          status: "on the way",
-          deliveryType: deliveryOption,
-        });
-      }
+      //   await updateDoc(docRef, {
+      //     bagsCount: newBagsCount,
+      //     deliveryType: deliveryOption, // можно обновить или не обновлять — на твое усмотрение
+      //   });
+      // } else {
+      //   // Если нет — создаем новую запись
+      //   await addDoc(collection(db, "driver_campaigns"), {
+      //     bagsCount: selectedBags,
+      //     campaignId: campaignRef,
+      //     userDriverId: userDriverRef,
+      //     status: "on the way",
+      //     deliveryType: deliveryOption,
+      //   });
+      // }
+
+      await addDoc(collection(db, "driver_campaigns"), {
+        bagsCount: selectedBags,
+        campaignId: campaignRef,
+        userDriverId: userDriverRef,
+        status: "on the way",
+        deliveryType: deliveryOption,
+      });
 
       // Увеличиваем количество незавершенных миссий
       await updateDoc(userDriverRef, {
