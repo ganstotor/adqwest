@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback } from "react";
 import {
   View,
   Text,
@@ -28,6 +30,7 @@ type DriverCampaign = {
   states: string[];
   status: string;
   bagsCount: number;
+  bagsDelivered: number;
   startDate: string;
   endDate: string;
 };
@@ -80,88 +83,90 @@ const MainPage: React.FC = () => {
     >
   );
 
-  useEffect(() => {
-    const fetchDriverCampaigns = async () => {
-      const user = auth.currentUser;
-      const statusOrder = {
-        active: 0,
-        "on the way": 1,
-        completed: 2,
-      };
-
-      if (!user) {
-        return;
-      }
-
-      try {
-        const userDriverRef = doc(db, "users_driver", user.uid);
-      
-        const q = query(
-          collection(db, "driver_campaigns"),
-          where("userDriverId", "==", userDriverRef)
-        );
-        const snapshot = await getDocs(q);
-      
-        const campaignList: (DriverCampaign | null)[] = await Promise.all(
-          snapshot.docs.map(async (docSnap) => {
-            const data = docSnap.data();
-      
-            const campaignRef = data.campaignId as DocumentReference;
-      
-            const campaignSnap = await getDoc(campaignRef);
-            if (!campaignSnap.exists()) {
-              return null;
-            }
-      
-            const campaignData = campaignSnap.data() as CampaignDoc;
-      
-            const adRef = campaignData.userAdId;
-            const adSnap = await getDoc(adRef);
-      
-            if (!adSnap.exists()) {
-              return null;
-            }
-      
-            const adData = adSnap.data() as AdDoc;
-      
-            return {
-              id: docSnap.id,
-              campaignId: campaignRef.id,
-              logo: adData.logo?.startsWith("http")
-                ? adData.logo
-                : `https:${adData.logo}`,
-              companyName: adData.companyName,
-              states: campaignData.states,
-              status: data.status,
-              bagsCount: data.bagsCount,
-              startDate:
-                campaignData.startDate?.toDate?.().toLocaleDateString() || "",
-              endDate:
-                campaignData.endDate?.toDate?.().toLocaleDateString() || "",
-            };
-          })
-        );
-      
-        const filteredCampaigns = campaignList.filter(
-          Boolean
-        ) as DriverCampaign[];
-      
-        // 🔽 Сортировка здесь
-        const sortedCampaigns = [...filteredCampaigns].sort((a, b) => {
-          return (
-            (statusOrder[a.status as keyof typeof statusOrder] ?? 99) -
-            (statusOrder[b.status as keyof typeof statusOrder] ?? 99)
+  useFocusEffect(
+    useCallback(() => {
+      const fetchDriverCampaigns = async () => {
+        const user = auth.currentUser;
+        const statusOrder = {
+          active: 0,
+          "on the way": 1,
+          completed: 2,
+        };
+  
+        if (!user) {
+          return;
+        }
+  
+        try {
+          const userDriverRef = doc(db, "users_driver", user.uid);
+  
+          const q = query(
+            collection(db, "driver_campaigns"),
+            where("userDriverId", "==", userDriverRef)
           );
-        });        
-        // ⬅️ Только это нужно оставить
-        setDriverCampaigns(sortedCampaigns);
-      
-      } catch (error) {
-        console.error("🔥 Error fetching driver campaigns:", error);
-      }
-    };
-    fetchDriverCampaigns();
-  }, []);
+          const snapshot = await getDocs(q);
+  
+          const campaignList: (DriverCampaign | null)[] = await Promise.all(
+            snapshot.docs.map(async (docSnap) => {
+              const data = docSnap.data();
+  
+              const campaignRef = data.campaignId as DocumentReference;
+  
+              const campaignSnap = await getDoc(campaignRef);
+              if (!campaignSnap.exists()) {
+                return null;
+              }
+  
+              const campaignData = campaignSnap.data() as CampaignDoc;
+  
+              const adRef = campaignData.userAdId;
+              const adSnap = await getDoc(adRef);
+  
+              if (!adSnap.exists()) {
+                return null;
+              }
+  
+              const adData = adSnap.data() as AdDoc;
+  
+              return {
+                id: docSnap.id,
+                campaignId: campaignRef.id,
+                logo: adData.logo?.startsWith("http")
+                  ? adData.logo
+                  : `https:${adData.logo}`,
+                companyName: adData.companyName,
+                states: campaignData.states,
+                status: data.status,
+                bagsCount: data.bagsCount,
+                bagsDelivered: data.bagsDelivered ?? 0,
+                startDate:
+                  campaignData.startDate?.toDate?.().toLocaleDateString() || "",
+                endDate:
+                  campaignData.endDate?.toDate?.().toLocaleDateString() || "",
+              };
+            })
+          );
+  
+          const filteredCampaigns = campaignList.filter(
+            Boolean
+          ) as DriverCampaign[];
+  
+          const sortedCampaigns = [...filteredCampaigns].sort((a, b) => {
+            return (
+              (statusOrder[a.status as keyof typeof statusOrder] ?? 99) -
+              (statusOrder[b.status as keyof typeof statusOrder] ?? 99)
+            );
+          });
+  
+          setDriverCampaigns(sortedCampaigns);
+        } catch (error) {
+          console.error("🔥 Error fetching driver campaigns:", error);
+        }
+      };
+  
+      fetchDriverCampaigns();
+    }, [])
+  );
 
   const handleScanCase = () => {
     router.push("/drops/scan-case");
@@ -194,19 +199,19 @@ const MainPage: React.FC = () => {
         Don’t have a case yet? Click “Order Bags”
       </Text>
       <View style={styles.topButtons}>
-      <TouchableOpacity
-        style={[styles.button, { backgroundColor: "#90EE90" }]}
-        onPress={handleScanCase}
-      >
-        <Text style={styles.buttonText}>Scan Case</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: "#90EE90" }]}
+          onPress={handleScanCase}
+        >
+          <Text style={styles.buttonText}>Scan Case</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[styles.button, { backgroundColor: "#FFA500" }]}
-        onPress={handleOrderBags}
-      >
-        <Text style={styles.buttonText}>Order Bags</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: "#FFA500" }]}
+          onPress={handleOrderBags}
+        >
+          <Text style={styles.buttonText}>Order Bags</Text>
+        </TouchableOpacity>
       </View>
       <Text style={styles.sectionTitle}>Your Campaigns:</Text>
 
@@ -230,9 +235,7 @@ const MainPage: React.FC = () => {
               </Text>
             </View>
           </View>
-          <Text style={styles.caseText}>
-            Cases
-          </Text>
+          <Text style={styles.caseText}>Cases</Text>
           {/* ❗️ Теперь ниже — driver_campaigns */}
           {group.campaigns.map((campaign, idx) => (
             <View key={campaign.id}>
@@ -242,7 +245,8 @@ const MainPage: React.FC = () => {
                     <Text style={styles.label}>Status:</Text> {campaign.status}
                   </Text>
                   <Text style={styles.text}>
-                    <Text style={styles.label}>Bags:</Text> {campaign.bagsCount}
+                    <Text style={styles.label}>Bags delivered:</Text>{" "}
+                    {campaign.bagsDelivered}/{campaign.bagsCount}
                   </Text>
                 </View>
                 <View style={styles.driverButtons}>
@@ -304,7 +308,7 @@ const styles = StyleSheet.create({
     marginTop: 15,
     padding: 15,
     borderRadius: 8,
-    
+
     alignItems: "center",
   },
   buttonText: {

@@ -34,6 +34,8 @@ export default function OrderBags() {
     "pickup" | "mail" | null
   >(null);
   const [popupVisible, setPopupVisible] = useState(false);
+  const [remainingBags, setRemainingBags] = useState<number | null>(null);
+  const [bagsCount, setBagsCount] = useState<number | null>(null);
 
   const db = getFirestore();
   const auth = getAuth();
@@ -68,6 +70,10 @@ export default function OrderBags() {
       else if (campaign?.zipCodes?.length)
         setArea(campaign.zipCodes.join(", "));
 
+      if (campaign?.remainingBags !== undefined)
+        setRemainingBags(campaign.remainingBags);
+      if (campaign?.bagsCount !== undefined) setBagsCount(campaign.bagsCount);
+
       const driverSnap = await getDoc(doc(db, "users_driver", userId));
       const driver = driverSnap.data();
       setRank(driver?.rank || null);
@@ -88,50 +94,40 @@ export default function OrderBags() {
     if (!selectedBags || !userId || !campaignId || !deliveryOption) return;
 
     try {
-      // Получаем ссылку на campaign и userDriver
       const campaignRef = doc(db, "campaigns", String(campaignId));
       const userDriverRef = doc(db, "users_driver", userId);
 
-      // Проверяем, существует ли уже driver_campaign с такой парой campaignId и userDriverId
-      // const driverCampaignQuery = collection(db, "driver_campaigns");
-      // const existingSnap = await getDocs(
-      //   query(
-      //     driverCampaignQuery,
-      //     where("campaignId", "==", campaignRef),
-      //     where("userDriverId", "==", userDriverRef)
-      //   )
-      // );
+      // Получаем текущие remainingBags
+      const campaignSnap = await getDoc(campaignRef);
+      const campaignData = campaignSnap.data();
+      const currentRemaining = campaignData?.remainingBags ?? 0;
 
-      // if (!existingSnap.empty) {
-      //   // Если такая запись существует — обновляем количество сумок
-      //   const docRef = existingSnap.docs[0].ref;
-      //   const existingData = existingSnap.docs[0].data();
-      //   const newBagsCount = (existingData.bagsCount || 0) + selectedBags;
+      // Проверяем, достаточно ли сумок осталось
+      if (selectedBags > currentRemaining) {
+        Alert.alert(
+          "Not enough bags",
+          `Only ${currentRemaining} bags are left in the campaign. Please select a smaller amount.`
+        );
+        return;
+      }      
 
-      //   await updateDoc(docRef, {
-      //     bagsCount: newBagsCount,
-      //     deliveryType: deliveryOption, // можно обновить или не обновлять — на твое усмотрение
-      //   });
-      // } else {
-      //   // Если нет — создаем новую запись
-      //   await addDoc(collection(db, "driver_campaigns"), {
-      //     bagsCount: selectedBags,
-      //     campaignId: campaignRef,
-      //     userDriverId: userDriverRef,
-      //     status: "on the way",
-      //     deliveryType: deliveryOption,
-      //   });
-      // }
+      const updatedRemaining = currentRemaining - selectedBags;
 
+      // Обновляем remainingBags
+      await updateDoc(campaignRef, {
+        remainingBags: updatedRemaining,
+      });
+
+      // Создаём новую запись в driver_campaigns
       await addDoc(collection(db, "driver_campaigns"), {
         bagsCount: selectedBags,
         campaignId: campaignRef,
         userDriverId: userDriverRef,
         status: "on the way",
         deliveryType: deliveryOption,
+        bagsDelivered: 0,
       });
 
-      // Увеличиваем количество незавершенных миссий
       await updateDoc(userDriverRef, {
         uncompletedMissionsCount: uncompletedMissionsCount + selectedBags,
       });
@@ -157,6 +153,12 @@ export default function OrderBags() {
           {companyName}
         </Text>
       )}
+      {remainingBags !== null && bagsCount !== null && (
+        <Text style={{ marginTop: 5, fontWeight: "bold" }}>
+          Remaining bags: {remainingBags} / {bagsCount}
+        </Text>
+      )}
+
       {area && <Text style={{ marginTop: 5 }}>{area}</Text>}
 
       <Text style={{ marginTop: 20 }}>Choose number of bags:</Text>
@@ -172,15 +174,32 @@ export default function OrderBags() {
           {[25, 50, 100, 200, 500].map((num) => {
             const rankValues = rankLimits[rank] || [];
             const maxAllowed = Math.max(...rankValues);
-            const remaining = maxAllowed - uncompletedMissionsCount;
-            const isAvailable = rankValues.includes(num) && num <= remaining;
+            const remainingByRank = maxAllowed - uncompletedMissionsCount;
+            const isWithinRank =
+              rankValues.includes(num) && num <= remainingByRank;
+            const isWithinCampaign =
+              remainingBags !== null && num <= remainingBags;
+            const isAvailable = isWithinRank && isWithinCampaign;
             const isSelected = selectedBags === num;
+
+            const handlePress = () => {
+              if (!isAvailable) {
+                let reason = "";
+                if (!isWithinRank) {
+                  reason = `Your current limit is ${remainingByRank} bags`;
+                } else if (!isWithinCampaign) {
+                  reason = `Only ${remainingBags} bags are left in the campaign`;
+                }
+                Alert.alert("Unavailable", reason);
+              } else {
+                setSelectedBags(num);
+              }
+            };            
 
             return (
               <TouchableOpacity
                 key={num}
-                disabled={!isAvailable}
-                onPress={() => setSelectedBags(num)}
+                onPress={handlePress}
                 style={{
                   padding: 12,
                   margin: 5,
