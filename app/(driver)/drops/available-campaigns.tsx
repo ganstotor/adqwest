@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useRouter } from 'expo-router';
+import { useRouter } from "expo-router";
 import {
   View,
   Text,
@@ -30,31 +30,32 @@ const OrderBagsScreen = () => {
       companyName: string | null;
       logo: string | null;
     }
-    
+
     const fetchData = async () => {
       try {
         const userId = auth.currentUser?.uid;
         if (!userId) return;
-    
+
         // Получаем zipCodes пользователя
         const userSnap = await getDoc(doc(db, "users_driver", userId));
-        const zipCodeObjects: { key: string; state: string }[] = userSnap.data()?.zipCodes || [];
-    
+        const zipCodeObjects: { key: string; state: string }[] =
+          userSnap.data()?.zipCodes || [];
+
         const userStates = new Set<string>();
         const userZipStrings = new Set<string>();
-    
+
         for (const zip of zipCodeObjects) {
           if (zip.state) userStates.add(zip.state);
           if (zip.key) userZipStrings.add(zip.key);
         }
-    
+
         // Получаем кампании и фильтруем
         const campaignsSnap = await getDocs(collection(db, "campaigns"));
         const filtered: any[] = [];
-    
+
         for (const campaignDoc of campaignsSnap.docs) {
           const data = campaignDoc.data();
-    
+
           const matchesNation = data.nation === true;
           const matchesZip = data.zipCodes?.some((zip: string) =>
             userZipStrings.has(zip)
@@ -62,12 +63,12 @@ const OrderBagsScreen = () => {
           const matchesState = data.states?.some((state: string) =>
             userStates.has(state)
           );
-    
+
           if (matchesNation || matchesZip || matchesState) {
             const campaignId = campaignDoc.id;
             let companyName = null;
             let logo = null;
-    
+
             const userAdRef = data.userAdId;
             if (userAdRef) {
               // Получаем документ по ссылке
@@ -76,14 +77,14 @@ const OrderBagsScreen = () => {
                 const userAdData = userAdSnap.data() as UserAdData; // Явное указание типа данных
                 companyName = userAdData?.companyName || null;
                 logo = userAdData?.logo || null;
-                
+
                 // Проверка и корректировка пути к логотипу
                 if (logo && logo.startsWith("//")) {
                   logo = "https:" + logo; // Добавление https:// если это необходимо
                 }
               }
             }
-    
+
             filtered.push({
               id: campaignId,
               ...data,
@@ -93,7 +94,7 @@ const OrderBagsScreen = () => {
             });
           }
         }
-    
+
         setCampaigns(filtered);
       } catch (error) {
         console.error("Error fetching campaigns:", error);
@@ -101,10 +102,9 @@ const OrderBagsScreen = () => {
         setLoading(false);
       }
     };
-  
+
     fetchData();
   }, []);
-  
 
   if (loading) {
     return (
@@ -115,7 +115,9 @@ const OrderBagsScreen = () => {
   }
 
   const handleOrderBags = (campaign: any) => {
-    router.push(`/drops/order-bags?campaignId=${campaign.id}&userAdId=${campaign.userAdId}`);
+    router.push(
+      `/drops/order-bags?campaignId=${campaign.id}&userAdId=${campaign.userAdId}`
+    );
   };
 
   return (
@@ -131,7 +133,8 @@ const OrderBagsScreen = () => {
             data={campaigns}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-              <TouchableOpacity onPress={() => handleOrderBags(item)}
+              <TouchableOpacity
+                onPress={() => handleOrderBags(item)}
                 style={{
                   padding: 10,
                   borderWidth: 1,
@@ -152,12 +155,28 @@ const OrderBagsScreen = () => {
                   />
                 )}
                 {item.companyName && (
-                  <Text style={{ fontSize: 16, fontWeight: "700", marginBottom: 5 }}>
+                  <Text
+                    style={{ fontSize: 16, fontWeight: "700", marginBottom: 5 }}
+                  >
                     {item.companyName}
                   </Text>
                 )}
-                <Text>States: {item.states?.join(", ")}</Text>
-                <Text>ZIP Codes: {item.zipCodes?.join(", ")}</Text>
+                {typeof item.remainingBags === "number" &&
+                  typeof item.bagsCount === "number" && (
+                    <Text style={{ marginBottom: 5 }}>
+                      Remaining bags: {item.remainingBags} / {item.bagsCount}
+                    </Text>
+                  )}
+                <Text>
+                  Area:{" "}
+                  {item.nation
+                    ? "Nationwide"
+                    : item.states?.length
+                    ? item.states.join(", ")
+                    : item.zipCodes?.length
+                    ? item.zipCodes.join(", ")
+                    : "Unknown"}
+                </Text>
               </TouchableOpacity>
             )}
           />

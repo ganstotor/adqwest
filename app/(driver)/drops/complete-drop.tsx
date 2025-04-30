@@ -25,6 +25,7 @@ import {
   limit,
 } from "firebase/firestore";
 import { app } from "../../../firebaseConfig";
+import stateAbbrMap from "../../../utils/stateAbbreviations";
 
 const db = getFirestore(app);
 
@@ -32,7 +33,9 @@ const CompleteDrop = () => {
   const { missionId } = useLocalSearchParams<{ missionId: string }>();
   const [permission, requestPermission] = useCameraPermissions();
   const [photo, setPhoto] = useState<any>(null);
-  const [location, setLocation] = useState<Location.LocationObject | null>(null);
+  const [location, setLocation] = useState<Location.LocationObject | null>(
+    null
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const cameraRef = useRef<CameraView | null>(null);
   const router = useRouter();
@@ -63,10 +66,13 @@ const CompleteDrop = () => {
 
   const handleSubmit = async () => {
     if (!photo || !photo.uri || !location || !missionId) {
-      Alert.alert("Error", "Please take a picture and ensure location is available.");
+      Alert.alert(
+        "Error",
+        "Please take a picture and ensure location is available."
+      );
       return;
     }
-  
+
     setIsSubmitting(true);
     try {
       // 1. Загрузить фото в Cloudinary
@@ -77,7 +83,7 @@ const CompleteDrop = () => {
         type: "image/jpeg",
       } as any);
       formData.append("upload_preset", "drop_photos");
-  
+
       const uploadResponse = await axios.post(
         "https://api.cloudinary.com/v1_1/dae8c4cok/image/upload",
         formData,
@@ -88,10 +94,10 @@ const CompleteDrop = () => {
           },
         }
       );
-  
+
       const photoUrl = uploadResponse.data.secure_url;
       if (!photoUrl) throw new Error("No photo URL returned");
-  
+
       // 2. Получить данные миссии
       const missionRef = doc(db, "driver_missions", missionId);
       const missionSnap = await getDoc(missionRef);
@@ -99,8 +105,60 @@ const CompleteDrop = () => {
       const missionData = missionSnap.data();
       const driverCampaignRef = missionData.driverCampaignId;
       const userDriverRef = missionData.userDriverId;
-      if (!driverCampaignRef?.id || !userDriverRef?.id) throw new Error("Missing references in mission");
-  
+      const campaignRef = missionData.campaignId;
+      const campaignSnap = await getDoc(campaignRef);
+      if (!campaignSnap.exists()) throw new Error("Campaign not found");
+
+      const campaign = campaignSnap.data() as {
+        nation?: boolean;
+        states?: string[];
+        zipCodes?: string[];
+      };
+
+      // Получаем геокод по координатам
+      const reverseGeocode = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+
+      const geo = reverseGeocode[0];
+      const currentState = geo?.region?.trim(); // Пример: 'New York'
+      const currentAbbr = currentState
+        ? stateAbbrMap[currentState].toUpperCase()
+        : null;
+
+      const currentZip = geo?.postalCode; // Пример: '90210'
+
+      // Проверка условий
+      if (!campaign.nation) {
+        if (campaign.states && campaign.states.length > 0) {
+          if (!currentAbbr || !campaign.states.includes(currentAbbr)) {
+            Alert.alert(
+              "Error",
+              `You are not in the allowed state area (${campaign.states.join(
+                ", "
+              )})`
+            );
+            setIsSubmitting(false);
+            return;
+          }
+        } else if (campaign.zipCodes && campaign.zipCodes.length > 0) {
+          if (!currentZip || !campaign.zipCodes.includes(currentZip)) {
+            Alert.alert(
+              "Error",
+              `You are not in the allowed ZIP area (${campaign.zipCodes.join(
+                ", "
+              )})`
+            );
+            setIsSubmitting(false);
+            return;
+          }
+        }
+      }
+
+      if (!driverCampaignRef?.id || !userDriverRef?.id)
+        throw new Error("Missing references in mission");
+
       // 3. Обновить статус миссии
       await updateDoc(missionRef, {
         status: "completed",
@@ -110,7 +168,20 @@ const CompleteDrop = () => {
         ),
         photo: photoUrl,
       });
-  
+
+      // 🔁 Увеличить bagsDelivered на 1 в driver_campaigns
+      const driverCampaignSnap = await getDoc(driverCampaignRef);
+      if (driverCampaignSnap.exists()) {
+        const campaignData = driverCampaignSnap.data() as {
+          bagsDelivered?: number;
+        };
+        const currentDelivered = campaignData.bagsDelivered ?? 0;
+
+        await updateDoc(driverCampaignRef, {
+          bagsDelivered: currentDelivered + 1,
+        });
+      }
+
       // 4. Получить и обновить статистику водителя
       const userDriverSnap = await getDoc(userDriverRef);
       if (!userDriverSnap.exists()) throw new Error("Driver not found");
@@ -118,33 +189,33 @@ const CompleteDrop = () => {
       const userDriverData = userDriverSnap.data() as {
         completedMissionsCount: number;
         uncompletedMissionsCount: number;
-        earnings: number;
+        potentialEarnings: number;
         rank: string;
       };
-      
+
       const {
         completedMissionsCount = 0,
         uncompletedMissionsCount = 0,
-        earnings = 0,
+        potentialEarnings = 0,
         rank = "Recruit",
       } = userDriverData;
-  
+
       const newCompleted = completedMissionsCount + 1;
       const newUncompleted = Math.max(uncompletedMissionsCount - 1, 0);
-      const newEarnings = earnings + 1;
-  
+      const newEarnings = potentialEarnings + 1;
+
       let newRank = rank;
-  
+
       const checkRankUpgrade = async () => {
         const rankConditions = {
           Recruit: { next: "Sergeant", required: 500, maxFailed: 9 },
           Sergeant: { next: "Captain", required: 1000, maxFailed: 4 },
           Captain: { next: "General", required: 5000, maxFailed: 4 },
         } as const;
-      
+
         const condition = rankConditions[rank as keyof typeof rankConditions];
         if (!condition) return;
-      
+
         if (newCompleted > condition.required) {
           const missionsQuerySnap = await getDocs(
             query(
@@ -154,34 +225,34 @@ const CompleteDrop = () => {
               limit(100)
             )
           );
-      
-          const last100 = missionsQuerySnap.docs.map(doc => doc.data());
-          const failedCount = last100.filter(m => m.status === "failed").length;
-      
+
+          const last100 = missionsQuerySnap.docs.map((doc) => doc.data());
+          const failedCount = last100.filter(
+            (m) => m.status === "failed"
+          ).length;
+
           if (failedCount <= condition.maxFailed) {
             newRank = condition.next;
           }
         }
       };
-      
-  
+
       await checkRankUpgrade();
-  
+
       await updateDoc(userDriverRef, {
         completedMissionsCount: newCompleted,
         uncompletedMissionsCount: newUncompleted,
-        earnings: newEarnings,
+        potentialEarnings: newEarnings,
         rank: newRank,
       });
-  
+
       Alert.alert("Success", "Mission completed successfully");
-  
+
       // 5. Навигация
       router.push({
         pathname: "/drops/missions",
         params: { driverCampaignId: driverCampaignRef.id },
       });
-  
     } catch (error: any) {
       console.error("Error completing mission:", error);
       Alert.alert(
@@ -192,7 +263,6 @@ const CompleteDrop = () => {
       setIsSubmitting(false);
     }
   };
-  
 
   if (!permission?.granted) {
     return (
@@ -207,7 +277,9 @@ const CompleteDrop = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Take a picture of the bag at the drop-off location</Text>
+      <Text style={styles.title}>
+        Take a picture of the bag at the drop-off location
+      </Text>
 
       {!photo ? (
         <View style={styles.cameraContainer}>

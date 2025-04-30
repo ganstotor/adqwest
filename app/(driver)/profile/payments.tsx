@@ -1,8 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert, FlatList } from 'react-native';
-import { getAuth } from 'firebase/auth';
-import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../../../firebaseConfig';
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  StyleSheet,
+  Alert,
+  FlatList,
+} from "react-native";
+import { getAuth } from "firebase/auth";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
+import { db } from "../../../firebaseConfig";
 
 interface Payment {
   id: string;
@@ -12,9 +28,10 @@ interface Payment {
 
 export default function PaymentsScreen() {
   const [currentUserUID, setCurrentUserUID] = useState<string | null>(null);
-  const [routingNumber, setRoutingNumber] = useState('');
-  const [accountNumber, setAccountNumber] = useState('');
-  const [earnings, setEarnings] = useState<number>(0);
+  const [routingNumber, setRoutingNumber] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [earnings, setEarnings] = useState<number>(0); // currentEarnings
+  const [potentialEarnings, setPotentialEarnings] = useState<number>(0);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -32,19 +49,23 @@ export default function PaymentsScreen() {
   }, []);
 
   const loadUserData = async (uid: string) => {
-    const ref = doc(db, 'users_driver', uid);
+    const ref = doc(db, "users_driver", uid);
     const snap = await getDoc(ref);
     if (snap.exists()) {
       const data = snap.data();
-      setRoutingNumber(data.routing || '');
-      setAccountNumber(data.account || '');
-      setEarnings(data.earnings || 0);
+      setRoutingNumber(data.routing || "");
+      setAccountNumber(data.account || "");
+      setEarnings(data.currentEarnings || 0);
+      setPotentialEarnings(data.potentialEarnings || 0);
     }
   };
 
   const loadPayments = async (uid: string) => {
-    const ref = doc(db, 'users_driver', uid);
-    const q = query(collection(db, 'payment'), where('userDriverId', '==', ref));
+    const ref = doc(db, "users_driver", uid);
+    const q = query(
+      collection(db, "payment"),
+      where("userDriverId", "==", ref)
+    );
     const querySnapshot = await getDocs(q);
 
     const result: Payment[] = [];
@@ -53,7 +74,7 @@ export default function PaymentsScreen() {
       result.push({
         id: doc.id,
         amount: data.amount || 0,
-        date: data.date || '—',
+        date: data.date || "—",
       });
     });
 
@@ -62,11 +83,14 @@ export default function PaymentsScreen() {
 
   const validateBankInfo = () => {
     if (routingNumber.length !== 9) {
-      Alert.alert('Invalid Routing Number', 'Routing number must be 9 digits.');
+      Alert.alert("Invalid Routing Number", "Routing number must be 9 digits.");
       return false;
     }
     if (accountNumber.length < 6 || accountNumber.length > 17) {
-      Alert.alert('Invalid Account Number', 'Account number must be between 6 and 17 digits.');
+      Alert.alert(
+        "Invalid Account Number",
+        "Account number must be between 6 and 17 digits."
+      );
       return false;
     }
     return true;
@@ -74,22 +98,26 @@ export default function PaymentsScreen() {
 
   const handleSaveBankInfo = async () => {
     if (accountNumber.length < 6) {
-      alert('Account Number must be at least 6 digits long');
+      alert("Account Number must be at least 6 digits long");
       return;
     }
     if (!validateBankInfo() || !currentUserUID) return;
 
     try {
-      await setDoc(doc(db, 'users_driver', currentUserUID), {
-        routing: routingNumber,
-        account: accountNumber,
-      }, { merge: true });
+      await setDoc(
+        doc(db, "users_driver", currentUserUID),
+        {
+          routing: routingNumber,
+          account: accountNumber,
+        },
+        { merge: true }
+      );
 
       setIsEditing(false);
-      Alert.alert('Saved', 'Bank information updated successfully.');
+      Alert.alert("Saved", "Bank information updated successfully.");
     } catch (error) {
-      console.error('Error saving bank info', error);
-      Alert.alert('Error', 'Failed to save bank information.');
+      console.error("Error saving bank info", error);
+      Alert.alert("Error", "Failed to save bank information.");
     }
   };
 
@@ -100,6 +128,9 @@ export default function PaymentsScreen() {
       <View style={styles.earningsBox}>
         <Text style={styles.earningsLabel}>Total Earnings</Text>
         <Text style={styles.earningsValue}>$ {earnings.toFixed(2)}</Text>
+        <Text style={styles.potentialText}>
+          Potential: $ {potentialEarnings.toFixed(2)}
+        </Text>
       </View>
 
       {!isEditing ? (
@@ -156,41 +187,41 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
   },
   title: {
     fontSize: 22,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 15,
   },
   subTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginTop: 30,
     marginBottom: 10,
   },
   earningsBox: {
     padding: 15,
     borderRadius: 10,
-    backgroundColor: '#f1f1f1',
-    alignItems: 'center',
+    backgroundColor: "#f1f1f1",
+    alignItems: "center",
     marginBottom: 20,
   },
   earningsLabel: {
     fontSize: 16,
-    color: '#666',
+    color: "#666",
   },
   earningsValue: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#00aa00',
+    fontWeight: "bold",
+    color: "#00aa00",
   },
   formContainer: {
     marginBottom: 20,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     borderRadius: 8,
     padding: 10,
     marginBottom: 10,
@@ -199,7 +230,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   cardTitle: {
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 10,
     fontSize: 16,
   },
@@ -209,28 +240,34 @@ const styles = StyleSheet.create({
   },
   editButtonContainer: {
     marginTop: 10,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
   },
   saveButtonContainer: {
     marginTop: 10,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
   },
   paymentItem: {
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: "#eee",
   },
   paymentAmount: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   paymentDate: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
   empty: {
-    textAlign: 'center',
+    textAlign: "center",
     marginTop: 20,
-    color: '#999',
+    color: "#999",
   },
+  potentialText: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 4,
+  },
+  
 });
