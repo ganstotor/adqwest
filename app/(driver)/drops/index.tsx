@@ -92,42 +92,42 @@ const MainPage: React.FC = () => {
           "on the way": 1,
           completed: 2,
         };
-  
+
         if (!user) {
           return;
         }
-  
+
         try {
           const userDriverRef = doc(db, "users_driver", user.uid);
-  
+
           const q = query(
             collection(db, "driver_campaigns"),
             where("userDriverId", "==", userDriverRef)
           );
           const snapshot = await getDocs(q);
-  
+
           const campaignList: (DriverCampaign | null)[] = await Promise.all(
             snapshot.docs.map(async (docSnap) => {
               const data = docSnap.data();
-  
+
               const campaignRef = data.campaignId as DocumentReference;
-  
+
               const campaignSnap = await getDoc(campaignRef);
               if (!campaignSnap.exists()) {
                 return null;
               }
-  
+
               const campaignData = campaignSnap.data() as CampaignDoc;
-  
+
               const adRef = campaignData.userAdId;
               const adSnap = await getDoc(adRef);
-  
+
               if (!adSnap.exists()) {
                 return null;
               }
-  
+
               const adData = adSnap.data() as AdDoc;
-  
+
               return {
                 id: docSnap.id,
                 campaignId: campaignRef.id,
@@ -146,24 +146,24 @@ const MainPage: React.FC = () => {
               };
             })
           );
-  
+
           const filteredCampaigns = campaignList.filter(
             Boolean
           ) as DriverCampaign[];
-  
+
           const sortedCampaigns = [...filteredCampaigns].sort((a, b) => {
             return (
               (statusOrder[a.status as keyof typeof statusOrder] ?? 99) -
               (statusOrder[b.status as keyof typeof statusOrder] ?? 99)
             );
           });
-  
+
           setDriverCampaigns(sortedCampaigns);
         } catch (error) {
           console.error("🔥 Error fetching driver campaigns:", error);
         }
       };
-  
+
       fetchDriverCampaigns();
     }, [])
   );
@@ -250,15 +250,17 @@ const MainPage: React.FC = () => {
                   </Text>
                 </View>
                 <View style={styles.driverButtons}>
-                  <TouchableOpacity
-                    onPress={() => handleViewMissions(campaign.id)}
-                    style={[
-                      styles.missionButton,
-                      { backgroundColor: "#007AFF" },
-                    ]}
-                  >
-                    <Text style={styles.missionText}>📦 View Missions</Text>
-                  </TouchableOpacity>
+                  {campaign.status !== "on the way" && (
+                    <TouchableOpacity
+                      onPress={() => handleViewMissions(campaign.id)}
+                      style={[
+                        styles.missionButton,
+                        { backgroundColor: "#007AFF" },
+                      ]}
+                    >
+                      <Text style={styles.missionText}>📦 View Missions</Text>
+                    </TouchableOpacity>
+                  )}
                   <TouchableOpacity
                     onPress={() => handleDriverCampaignDetails(campaign)}
                     style={[

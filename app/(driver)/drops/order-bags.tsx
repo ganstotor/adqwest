@@ -20,6 +20,7 @@ import {
   where,
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
+import { TextInput, ScrollView } from "react-native";
 
 export default function OrderBags() {
   const { campaignId, userAdId } = useLocalSearchParams();
@@ -30,12 +31,15 @@ export default function OrderBags() {
   const [uncompletedMissionsCount, setUncompletedMissionsCount] =
     useState<number>(0);
   const [selectedBags, setSelectedBags] = useState<number | null>(null);
-  const [deliveryOption, setDeliveryOption] = useState<
-    "pickup" | "mail" | null
-  >(null);
-  const [popupVisible, setPopupVisible] = useState(false);
+  const [deliveryOption] = useState<"mail">("mail");
   const [remainingBags, setRemainingBags] = useState<number | null>(null);
   const [bagsCount, setBagsCount] = useState<number | null>(null);
+
+  const [addressLine1, setAddressLine1] = useState("");
+  const [addressLine2, setAddressLine2] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [zip, setZip] = useState("");
 
   const db = getFirestore();
   const auth = getAuth();
@@ -109,7 +113,7 @@ export default function OrderBags() {
           `Only ${currentRemaining} bags are left in the campaign. Please select a smaller amount.`
         );
         return;
-      }      
+      }
 
       const updatedRemaining = currentRemaining - selectedBags;
 
@@ -126,6 +130,7 @@ export default function OrderBags() {
         status: "on the way",
         deliveryType: deliveryOption,
         bagsDelivered: 0,
+        potentialEarnings: 0,
       });
 
       await updateDoc(userDriverRef, {
@@ -141,7 +146,7 @@ export default function OrderBags() {
   };
 
   return (
-    <View style={{ padding: 20 }}>
+    <ScrollView contentContainerStyle={{ padding: 20 }}>
       {logo && (
         <Image
           source={{ uri: logo }}
@@ -194,7 +199,7 @@ export default function OrderBags() {
               } else {
                 setSelectedBags(num);
               }
-            };            
+            };
 
             return (
               <TouchableOpacity
@@ -226,80 +231,49 @@ export default function OrderBags() {
         {uncompletedMissionsCount} undelivered bags
       </Text>
 
-      <TouchableOpacity onPress={() => setPopupVisible(true)}>
-        <Text style={{ color: "#007AFF", marginVertical: 10 }}>
-          View delivery info
-        </Text>
-      </TouchableOpacity>
+      <Text style={{ marginTop: 20, fontWeight: "bold" }}>
+        Delivery method: Mail it to me
+      </Text>
 
-      <Modal transparent visible={popupVisible} animationType="fade">
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: "rgba(0,0,0,0.5)",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <View
-            style={{
-              backgroundColor: "#fff",
-              padding: 20,
-              borderRadius: 10,
-              width: "80%",
-            }}
-          >
-            <TouchableOpacity
-              onPress={() => setPopupVisible(false)}
-              style={{ alignSelf: "flex-end" }}
-            >
-              <Text style={{ fontSize: 18 }}>✖</Text>
-            </TouchableOpacity>
-            <Text>Delivery instructions go here...</Text>
-          </View>
-        </View>
-      </Modal>
+      <Text style={{ marginTop: 20, fontWeight: "bold" }}>
+        Shipping Address:
+      </Text>
 
-      <Text style={{ marginTop: 20 }}>Delivery method:</Text>
-      {[
-        { label: "Local pickup", value: "pickup" },
-        { label: "Mail it to me", value: "mail" },
-      ].map((option) => (
-        <TouchableOpacity
-          key={option.value}
-          onPress={() => setDeliveryOption(option.value as any)}
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            marginVertical: 5,
-          }}
-        >
-          <View
-            style={{
-              width: 20,
-              height: 20,
-              borderRadius: 10,
-              borderWidth: 1,
-              borderColor: "#000",
-              marginRight: 10,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            {deliveryOption === option.value && (
-              <View
-                style={{
-                  width: 12,
-                  height: 12,
-                  borderRadius: 6,
-                  backgroundColor: "#FF9800",
-                }}
-              />
-            )}
-          </View>
-          <Text>{option.label}</Text>
-        </TouchableOpacity>
-      ))}
+      <TextInput
+        placeholder="Address Line 1"
+        value={addressLine1}
+        onChangeText={setAddressLine1}
+        style={{ borderBottomWidth: 1, marginBottom: 10 }}
+      />
+
+      <TextInput
+        placeholder="Address Line 2"
+        value={addressLine2}
+        onChangeText={setAddressLine2}
+        style={{ borderBottomWidth: 1, marginBottom: 10 }}
+      />
+
+      <TextInput
+        placeholder="City"
+        value={city}
+        onChangeText={setCity}
+        style={{ borderBottomWidth: 1, marginBottom: 10 }}
+      />
+
+      <TextInput
+        placeholder="State"
+        value={state}
+        onChangeText={setState}
+        style={{ borderBottomWidth: 1, marginBottom: 10 }}
+      />
+
+      <TextInput
+        placeholder="ZIP Code"
+        value={zip}
+        onChangeText={setZip}
+        keyboardType="numeric"
+        style={{ borderBottomWidth: 1, marginBottom: 10 }}
+      />
 
       <TouchableOpacity
         onPress={handleAddCampaign}
@@ -317,6 +291,6 @@ export default function OrderBags() {
           Confirm Campaign
         </Text>
       </TouchableOpacity>
-    </View>
+      </ScrollView>
   );
 }

@@ -31,9 +31,30 @@ export default function PaymentsScreen() {
   const [routingNumber, setRoutingNumber] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [earnings, setEarnings] = useState<number>(0); // currentEarnings
-  const [potentialEarnings, setPotentialEarnings] = useState<number>(0);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [isEditing, setIsEditing] = useState(false);
+  const [potentialEarnings, setPotentialEarnings] = useState<number>(0);
+
+  const loadPotentialEarningsFromCampaigns = async (uid: string) => {
+    const userRef = doc(db, "users_driver", uid);
+    const q = query(
+      collection(db, "driver_campaigns"),
+      where("userDriverId", "==", userRef)
+    );
+  
+    const snapshot = await getDocs(q);
+    let total = 0;
+  
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      if (typeof data.potentialEarnings === "number") {
+        total += data.potentialEarnings;
+      }
+    });
+  
+    setPotentialEarnings(total);
+  };
+  
 
   useEffect(() => {
     const auth = getAuth();
@@ -42,6 +63,8 @@ export default function PaymentsScreen() {
         setCurrentUserUID(user.uid);
         await loadUserData(user.uid);
         await loadPayments(user.uid);
+        await loadPotentialEarningsFromCampaigns(user.uid);
+
       }
     });
 
@@ -56,9 +79,11 @@ export default function PaymentsScreen() {
       setRoutingNumber(data.routing || "");
       setAccountNumber(data.account || "");
       setEarnings(data.currentEarnings || 0);
-      setPotentialEarnings(data.potentialEarnings || 0);
     }
   };
+
+  
+
 
   const loadPayments = async (uid: string) => {
     const ref = doc(db, "users_driver", uid);

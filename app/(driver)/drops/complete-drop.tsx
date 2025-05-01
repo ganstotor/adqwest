@@ -174,12 +174,34 @@ const CompleteDrop = () => {
       if (driverCampaignSnap.exists()) {
         const campaignData = driverCampaignSnap.data() as {
           bagsDelivered?: number;
+          bagsCount?: number;
+          status?: string;
+          potentialEarnings?: number;
         };
-        const currentDelivered = campaignData.bagsDelivered ?? 0;
 
-        await updateDoc(driverCampaignRef, {
-          bagsDelivered: currentDelivered + 1,
-        });
+        const currentDelivered = campaignData.bagsDelivered ?? 0;
+        const bagsCount = campaignData.bagsCount ?? 0;
+        const newDelivered = currentDelivered + 1;
+
+        const currentPotential = campaignData.potentialEarnings ?? 0;
+
+        const updates: any = {
+          bagsDelivered: newDelivered,
+          potentialEarnings: currentPotential + 1,
+        };
+
+        if (newDelivered >= bagsCount) {
+          updates.status = "completed";
+        }
+
+        await updateDoc(driverCampaignRef, updates);
+
+        // ✅ Проверка: если доставлены все сумки — меняем статус
+        if (newDelivered >= bagsCount) {
+          updates.status = "completed";
+        }
+
+        await updateDoc(driverCampaignRef, updates);
       }
 
       // 4. Получить и обновить статистику водителя
@@ -202,7 +224,6 @@ const CompleteDrop = () => {
 
       const newCompleted = completedMissionsCount + 1;
       const newUncompleted = Math.max(uncompletedMissionsCount - 1, 0);
-      const newEarnings = potentialEarnings + 1;
 
       let newRank = rank;
 
@@ -242,10 +263,9 @@ const CompleteDrop = () => {
       await updateDoc(userDriverRef, {
         completedMissionsCount: newCompleted,
         uncompletedMissionsCount: newUncompleted,
-        potentialEarnings: newEarnings,
         rank: newRank,
       });
-
+      
       Alert.alert("Success", "Mission completed successfully");
 
       // 5. Навигация
