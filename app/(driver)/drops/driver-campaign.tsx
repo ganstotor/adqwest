@@ -54,9 +54,11 @@ const calculateTargetObjective = (bagsCount: number): number => {
   if (bagsCount === 50) return 46;
   if (bagsCount === 100) return 92;
   if (bagsCount === 200) return 184;
-  if (bagsCount === 500) return 460;
+  if (bagsCount === 500) return 470;
   return Math.floor(bagsCount * 0.92);
 };
+
+
 
 const DriverCampaignScreen: React.FC = () => {
   const { driverCampaignId } = useLocalSearchParams<{ driverCampaignId: string }>();
@@ -70,46 +72,48 @@ const DriverCampaignScreen: React.FC = () => {
   const [showCompletePopup, setShowCompletePopup] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
 
+  const fetchData = async () => {
+    if (!driverCampaignId) return;
+    try {
+      setLoading(true);
+      const driverCampaignRef = doc(db, "driver_campaigns", driverCampaignId);
+      const driverCampaignSnap = await getDoc(driverCampaignRef);
+      if (!driverCampaignSnap.exists()) return;
+  
+      const driverCampaign = driverCampaignSnap.data() as DriverCampaignData;
+      setDriverCampaignData(driverCampaign);
+      setTargetObjective(calculateTargetObjective(driverCampaign.bagsCount));
+  
+      const campaignSnap = await getDoc(driverCampaign.campaignId);
+      if (!campaignSnap.exists()) return;
+  
+      const campaignData = campaignSnap.data() as CampaignData;
+      const adSnap = await getDoc(campaignData.userAdId);
+      if (!adSnap.exists()) return;
+  
+      const adData = adSnap.data() as AdData;
+  
+      let area = "";
+      if (campaignData.nation) area = "Nationwide";
+      else if (campaignData.states?.length) area = campaignData.states.join(", ");
+      else if (campaignData.zipCodes?.length) area = campaignData.zipCodes.join(", ");
+  
+      setData({
+        logo: adData.logo?.startsWith("http") ? adData.logo : `https:${adData.logo}`,
+        companyName: adData.companyName,
+        area,
+        bagsCount: driverCampaign.bagsCount,
+        status: driverCampaign.status,
+        driverCampaignId,
+      });
+    } catch (e) {
+      console.error("🔥 Error fetching data:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   useEffect(() => {
-    const fetchData = async () => {
-      if (!driverCampaignId) return;
-      try {
-        const driverCampaignRef = doc(db, "driver_campaigns", driverCampaignId);
-        const driverCampaignSnap = await getDoc(driverCampaignRef);
-        if (!driverCampaignSnap.exists()) return;
-
-        const driverCampaign = driverCampaignSnap.data() as DriverCampaignData;
-        setDriverCampaignData(driverCampaign);
-        setTargetObjective(calculateTargetObjective(driverCampaign.bagsCount));
-
-        const campaignSnap = await getDoc(driverCampaign.campaignId);
-        if (!campaignSnap.exists()) return;
-
-        const campaignData = campaignSnap.data() as CampaignData;
-        const adSnap = await getDoc(campaignData.userAdId);
-        if (!adSnap.exists()) return;
-
-        const adData = adSnap.data() as AdData;
-
-        let area = "";
-        if (campaignData.nation) area = "Nationwide";
-        else if (campaignData.states?.length) area = campaignData.states.join(", ");
-        else if (campaignData.zipCodes?.length) area = campaignData.zipCodes.join(", ");
-
-        setData({
-          logo: adData.logo?.startsWith("http") ? adData.logo : `https:${adData.logo}`,
-          companyName: adData.companyName,
-          area,
-          bagsCount: driverCampaign.bagsCount,
-          status: driverCampaign.status,
-          driverCampaignId,
-        });
-      } catch (e) {
-        console.error("🔥 Error fetching data:", e);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchData();
   }, [driverCampaignId]);
 
@@ -186,6 +190,7 @@ const DriverCampaignScreen: React.FC = () => {
                 potentialEarnings: earnings,
               });
               setData((prev) => prev && { ...prev, status: newStatus });
+              await fetchData();
               setShowCompletePopup(false);
             }}
           >
