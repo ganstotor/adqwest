@@ -26,6 +26,13 @@ type DriverCampaignData = {
   bagsFailed: number;
   potentialEarnings: number;
   status: string;
+  shippingAddress?: {
+    addressLine1: string;
+    addressLine2: string;
+    city: string;
+    state: string;
+    zip: string;
+  };
 };
 
 type CampaignData = {
@@ -58,15 +65,16 @@ const calculateTargetObjective = (bagsCount: number): number => {
   return Math.floor(bagsCount * 0.92);
 };
 
-
-
 const DriverCampaignScreen: React.FC = () => {
-  const { driverCampaignId } = useLocalSearchParams<{ driverCampaignId: string }>();
+  const { driverCampaignId } = useLocalSearchParams<{
+    driverCampaignId: string;
+  }>();
   const router = useRouter();
   const db = getFirestore();
 
   const [data, setData] = useState<ScreenData | null>(null);
-  const [driverCampaignData, setDriverCampaignData] = useState<DriverCampaignData | null>(null);
+  const [driverCampaignData, setDriverCampaignData] =
+    useState<DriverCampaignData | null>(null);
   const [targetObjective, setTargetObjective] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [showCompletePopup, setShowCompletePopup] = useState(false);
@@ -79,27 +87,31 @@ const DriverCampaignScreen: React.FC = () => {
       const driverCampaignRef = doc(db, "driver_campaigns", driverCampaignId);
       const driverCampaignSnap = await getDoc(driverCampaignRef);
       if (!driverCampaignSnap.exists()) return;
-  
+
       const driverCampaign = driverCampaignSnap.data() as DriverCampaignData;
       setDriverCampaignData(driverCampaign);
       setTargetObjective(calculateTargetObjective(driverCampaign.bagsCount));
-  
+
       const campaignSnap = await getDoc(driverCampaign.campaignId);
       if (!campaignSnap.exists()) return;
-  
+
       const campaignData = campaignSnap.data() as CampaignData;
       const adSnap = await getDoc(campaignData.userAdId);
       if (!adSnap.exists()) return;
-  
+
       const adData = adSnap.data() as AdData;
-  
+
       let area = "";
       if (campaignData.nation) area = "Nationwide";
-      else if (campaignData.states?.length) area = campaignData.states.join(", ");
-      else if (campaignData.zipCodes?.length) area = campaignData.zipCodes.join(", ");
-  
+      else if (campaignData.states?.length)
+        area = campaignData.states.join(", ");
+      else if (campaignData.zipCodes?.length)
+        area = campaignData.zipCodes.join(", ");
+
       setData({
-        logo: adData.logo?.startsWith("http") ? adData.logo : `https:${adData.logo}`,
+        logo: adData.logo?.startsWith("http")
+          ? adData.logo
+          : `https:${adData.logo}`,
         companyName: adData.companyName,
         area,
         bagsCount: driverCampaign.bagsCount,
@@ -112,7 +124,7 @@ const DriverCampaignScreen: React.FC = () => {
       setLoading(false);
     }
   };
-  
+
   useEffect(() => {
     fetchData();
   }, [driverCampaignId]);
@@ -125,14 +137,21 @@ const DriverCampaignScreen: React.FC = () => {
     );
   }
 
-  const { potentialEarnings, bagsDelivered, bagsFailed, bagsCount } = driverCampaignData;
+  const { potentialEarnings, bagsDelivered, bagsFailed, bagsCount } =
+    driverCampaignData;
 
   const handleNavigateScanBag = () => {
-    router.push({ pathname: "/drops/scan-bag", params: { driverCampaignId: data.driverCampaignId } });
+    router.push({
+      pathname: "/drops/scan-bag",
+      params: { driverCampaignId: data.driverCampaignId },
+    });
   };
 
   const handleNavigateReassign = () => {
-    router.push({ pathname: "/drops/reassign-campaign", params: { driverCampaignId: data.driverCampaignId } });
+    router.push({
+      pathname: "/drops/reassign-campaign",
+      params: { driverCampaignId: data.driverCampaignId },
+    });
   };
 
   return (
@@ -141,41 +160,75 @@ const DriverCampaignScreen: React.FC = () => {
         <Image source={{ uri: data.logo }} style={styles.logo} />
         <View style={styles.headerTextContainer}>
           <Text style={styles.title}>{data.companyName}</Text>
-          <Text style={styles.text}><Text style={styles.label}>Area:</Text> {data.area}</Text>
-          <Text style={styles.text}><Text style={styles.label}>Bags Count:</Text> {bagsCount}</Text>
-          <Text style={styles.text}><Text style={styles.label}>Status:</Text> {data.status}</Text>
+          <Text style={styles.text}>
+            <Text style={styles.label}>Area:</Text> {data.area}
+          </Text>
+          <Text style={styles.text}>
+            <Text style={styles.label}>Bags Count:</Text> {bagsCount}
+          </Text>
+          <Text style={styles.text}>
+            <Text style={styles.label}>Status:</Text> {data.status}
+          </Text>
         </View>
       </View>
-  
-      <Text style={styles.text}><Text style={styles.label}>Potential Earnings:</Text> ${potentialEarnings.toFixed(2)}</Text>
-      <Text style={styles.text}><Text style={styles.label}>Missions Completed:</Text> {bagsDelivered}</Text>
-      <Text style={styles.text}><Text style={styles.label}>Missions Failed:</Text> {bagsFailed}</Text>
-      <Text style={styles.text}><Text style={styles.label}>Missions Remaining:</Text> {bagsCount - bagsDelivered - bagsFailed}</Text>
-  
+
+      <Text style={styles.text}>
+        <Text style={styles.label}>Potential Earnings:</Text> $
+        {potentialEarnings.toFixed(2)}
+      </Text>
+      <Text style={styles.text}>
+        <Text style={styles.label}>Missions Completed:</Text> {bagsDelivered}
+      </Text>
+      <Text style={styles.text}>
+        <Text style={styles.label}>Missions Failed:</Text> {bagsFailed}
+      </Text>
+      <Text style={styles.text}>
+        <Text style={styles.label}>Missions Remaining:</Text>{" "}
+        {bagsCount - bagsDelivered - bagsFailed}
+      </Text>
+
       <View style={{ flexDirection: "row", alignItems: "center" }}>
-        <Text style={styles.text}><Text style={styles.label}>Target Objective:</Text> {targetObjective}</Text>
-        <TouchableOpacity onPress={() => setShowTooltip(true)} style={{ marginLeft: 5 }}>
+        <Text style={styles.text}>
+          <Text style={styles.label}>Target Objective:</Text> {targetObjective}
+        </Text>
+        <TouchableOpacity
+          onPress={() => setShowTooltip(true)}
+          style={{ marginLeft: 5 }}
+        >
           <Text style={{ fontSize: 18 }}>❓</Text>
         </TouchableOpacity>
       </View>
+      <View>
+      {driverCampaignData.shippingAddress && (
+          <>
+            <Text style={styles.label}>Address</Text>
+            <Text style={styles.text}>
+              {`${driverCampaignData.shippingAddress.addressLine1} ${driverCampaignData.shippingAddress.addressLine2}, ${driverCampaignData.shippingAddress.city}, ${driverCampaignData.shippingAddress.state} ${driverCampaignData.shippingAddress.zip}`}
+            </Text>
+          </>
+        )}
+      </View>
       {showTooltip && (
         <Text style={styles.tooltip}>
-          Bags you need to deliver in order to get the highest reward per campaign.
+          Bags you need to deliver in order to get the highest reward per
+          campaign.
         </Text>
       )}
-  
+
       <TouchableOpacity
         style={[styles.button, { marginTop: 10, backgroundColor: "#d9534f" }]}
         onPress={() => setShowCompletePopup(true)}
       >
         <Text style={styles.buttonText}>Complete Case</Text>
       </TouchableOpacity>
-  
+
       {showCompletePopup && (
         <View style={styles.popup}>
           <Text style={styles.popupText}>
             {bagsDelivered < targetObjective
-              ? `If you complete the mission now, the amount of earnings will be halved.\nUncompleted missions will go to the failed status.\n\nYou’ll earn $${(potentialEarnings / 2).toFixed(2)}`
+              ? `If you complete the mission now, the amount of earnings will be halved.\nUncompleted missions will go to the failed status.\n\nYou’ll earn $${(
+                  potentialEarnings / 2
+                ).toFixed(2)}`
               : "If you complete the mission now, uncompleted missions will go to the failed status."}
           </Text>
           <TouchableOpacity
@@ -183,7 +236,10 @@ const DriverCampaignScreen: React.FC = () => {
             onPress={async () => {
               const newStatus = "completed";
               const failed = bagsCount - bagsDelivered;
-              const earnings = bagsDelivered < targetObjective ? potentialEarnings / 2 : potentialEarnings;
+              const earnings =
+                bagsDelivered < targetObjective
+                  ? potentialEarnings / 2
+                  : potentialEarnings;
               await updateDoc(doc(db, "driver_campaigns", driverCampaignId), {
                 status: newStatus,
                 bagsFailed: failed,
@@ -204,12 +260,15 @@ const DriverCampaignScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
       )}
-  
+
       <TouchableOpacity style={styles.button} onPress={handleNavigateScanBag}>
         <Text style={styles.buttonText}>Bag an item</Text>
       </TouchableOpacity>
-  
-      <TouchableOpacity style={[styles.button, { marginTop: 10 }]} onPress={handleNavigateReassign}>
+
+      <TouchableOpacity
+        style={[styles.button, { marginTop: 10 }]}
+        onPress={handleNavigateReassign}
+      >
         <Text style={styles.buttonText}>Reassign campaign</Text>
       </TouchableOpacity>
     </ScrollView>
@@ -229,8 +288,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   headerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 20,
   },
   headerTextContainer: {
@@ -270,8 +329,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     padding: 20,
     borderRadius: 10,
-    elevation: 10,           // для Android
-    zIndex: 10,              // для iOS
+    elevation: 10, // для Android
+    zIndex: 10, // для iOS
     position: "absolute",
     top: "30%",
     left: "10%",
@@ -280,7 +339,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
-  },  
+  },
   popupText: {
     fontSize: 16,
     textAlign: "center",

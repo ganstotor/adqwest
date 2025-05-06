@@ -221,17 +221,16 @@ export default function OrderBags() {
   const handleAddCampaign = async () => {
     const userId = auth.currentUser?.uid;
     if (!selectedBags || !userId || !campaignId || !deliveryOption) return;
-
+  
     try {
       const campaignRef = doc(db, "campaigns", String(campaignId));
       const userDriverRef = doc(db, "users_driver", userId);
-
-      // Получаем текущие remainingBags
+  
+      // Get current remainingBags
       const campaignSnap = await getDoc(campaignRef);
       const campaignData = campaignSnap.data();
       const currentRemaining = campaignData?.remainingBags ?? 0;
-
-      // Проверяем, достаточно ли сумок осталось
+  
       if (selectedBags > currentRemaining) {
         Alert.alert(
           "Not enough bags",
@@ -239,15 +238,20 @@ export default function OrderBags() {
         );
         return;
       }
-
+  
+      // Get primary address
+      const primary = addresses.find((a) => a.isPrimary);
+      if (!primary) {
+        Alert.alert("Missing address", "Please set a primary shipping address.");
+        return;
+      }
+  
       const updatedRemaining = currentRemaining - selectedBags;
-
-      // Обновляем remainingBags
+  
       await updateDoc(campaignRef, {
         remainingBags: updatedRemaining,
       });
-
-      // Создаём новую запись в driver_campaigns
+  
       await addDoc(collection(db, "driver_campaigns"), {
         bagsCount: selectedBags,
         campaignId: campaignRef,
@@ -256,19 +260,26 @@ export default function OrderBags() {
         deliveryType: deliveryOption,
         bagsDelivered: 0,
         potentialEarnings: 0,
+        shippingAddress: {
+          addressLine1: primary.addressLine1,
+          addressLine2: primary.addressLine2,
+          city: primary.city,
+          state: primary.state,
+          zip: primary.zip,
+        },
       });
-
+  
       await updateDoc(userDriverRef, {
         uncompletedMissionsCount: uncompletedMissionsCount + selectedBags,
       });
-
+  
       Alert.alert("Success", "Campaign updated successfully!");
       router.replace("/drops");
     } catch (error) {
       console.error("Error adding campaign:", error);
       Alert.alert("Error", "Something went wrong.");
     }
-  };
+  };  
 
   return (
     <ScrollView contentContainerStyle={{ padding: 20 }}>
@@ -461,6 +472,24 @@ export default function OrderBags() {
           </View>
         </View>
       ))}
+
+      <TouchableOpacity
+        onPress={handleAddCampaign}
+        disabled={!selectedBags || addresses.length === 0}
+        style={{
+          marginTop: 30,
+          padding: 15,
+          backgroundColor:
+            selectedBags && addresses.length > 0 ? "#2196F3" : "#ccc",
+          borderRadius: 10,
+        }}
+      >
+        <Text
+          style={{ color: "#fff", textAlign: "center", fontWeight: "bold" }}
+        >
+          Create Case
+        </Text>
+      </TouchableOpacity>
 
       <Modal visible={addressModalVisible} animationType="slide" transparent>
         <View
