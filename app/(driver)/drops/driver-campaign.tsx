@@ -24,6 +24,7 @@ type DriverCampaignData = {
   bagsCount: number;
   bagsDelivered: number;
   bagsFailed: number;
+  currentEarnings: number;
   potentialEarnings: number;
   status: string;
   shippingAddress?: {
@@ -137,7 +138,7 @@ const DriverCampaignScreen: React.FC = () => {
     );
   }
 
-  const { potentialEarnings, bagsDelivered, bagsFailed, bagsCount } =
+  const { currentEarnings, potentialEarnings, bagsDelivered, bagsFailed, bagsCount } =
     driverCampaignData;
 
   const handleNavigateScanBag = () => {
@@ -172,6 +173,10 @@ const DriverCampaignScreen: React.FC = () => {
         </View>
       </View>
 
+      <Text style={styles.text}>
+        <Text style={styles.label}>Current Earnings:</Text> $
+        {currentEarnings.toFixed(2)}
+      </Text>
       <Text style={styles.text}>
         <Text style={styles.label}>Potential Earnings:</Text> $
         {potentialEarnings.toFixed(2)}

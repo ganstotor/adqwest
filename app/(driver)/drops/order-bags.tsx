@@ -260,6 +260,7 @@ export default function OrderBags() {
         deliveryType: deliveryOption,
         bagsDelivered: 0,
         potentialEarnings: 0,
+        currentEarnings: 0,
         shippingAddress: {
           addressLine1: primary.addressLine1,
           addressLine2: primary.addressLine2,

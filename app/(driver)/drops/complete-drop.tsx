@@ -29,6 +29,15 @@ import stateAbbrMap from "../../../utils/stateAbbreviations";
 
 const db = getFirestore(app);
 
+const calculateTargetObjective = (bagsCount: number): number => {
+  if (bagsCount === 25) return 23;
+  if (bagsCount === 50) return 46;
+  if (bagsCount === 100) return 92;
+  if (bagsCount === 200) return 184;
+  if (bagsCount === 500) return 470;
+  return Math.floor(bagsCount * 0.92);
+};
+
 const CompleteDrop = () => {
   const { missionId } = useLocalSearchParams<{ missionId: string }>();
   const [permission, requestPermission] = useCameraPermissions();
@@ -175,34 +184,56 @@ const CompleteDrop = () => {
         const campaignData = driverCampaignSnap.data() as {
           bagsDelivered?: number;
           bagsCount?: number;
-          status?: string;
+          currentEarnings?: number;
           potentialEarnings?: number;
+          status?: string;
         };
-
+      
         const currentDelivered = campaignData.bagsDelivered ?? 0;
         const bagsCount = campaignData.bagsCount ?? 0;
+        const target = calculateTargetObjective(bagsCount);
         const newDelivered = currentDelivered + 1;
-
+      
         const currentPotential = campaignData.potentialEarnings ?? 0;
-
+        const currentEarned = campaignData.currentEarnings ?? 0;
+      
+        let newPotential = currentPotential;
+        let newCurrent = currentEarned;
+      
+        if (newDelivered < target) {
+          newPotential += 1;
+        } else {
+          if (currentEarned === 0) {
+            newCurrent = newPotential + 1;
+            newPotential = 0;
+          } else {
+            newCurrent += 1;
+          }
+        }
+      
         const updates: any = {
           bagsDelivered: newDelivered,
-          potentialEarnings: currentPotential + 1,
+          potentialEarnings: newPotential,
+          currentEarnings: newCurrent,
         };
-
+      
         if (newDelivered >= bagsCount) {
           updates.status = "completed";
         }
-
+      
         await updateDoc(driverCampaignRef, updates);
-
-        // ✅ Проверка: если доставлены все сумки — меняем статус
-        if (newDelivered >= bagsCount) {
-          updates.status = "completed";
+      
+        // обновить в user_driver
+        const userDriverSnap = await getDoc(userDriverRef);
+        if (userDriverSnap.exists()) {
+          const userData = userDriverSnap.data() as { currentEarnings?: number };
+          const userCurrent = userData.currentEarnings ?? 0;
+          await updateDoc(userDriverRef, {
+            currentEarnings: userCurrent + (newCurrent - currentEarned),
+          });
         }
-
-        await updateDoc(driverCampaignRef, updates);
       }
+      
 
       // 4. Получить и обновить статистику водителя
       const userDriverSnap = await getDoc(userDriverRef);
@@ -211,14 +242,12 @@ const CompleteDrop = () => {
       const userDriverData = userDriverSnap.data() as {
         completedMissionsCount: number;
         uncompletedMissionsCount: number;
-        potentialEarnings: number;
         rank: string;
       };
 
       const {
         completedMissionsCount = 0,
         uncompletedMissionsCount = 0,
-        potentialEarnings = 0,
         rank = "Recruit",
       } = userDriverData;
 
