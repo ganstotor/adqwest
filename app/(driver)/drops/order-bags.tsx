@@ -256,7 +256,7 @@ export default function OrderBags() {
         bagsCount: selectedBags,
         campaignId: campaignRef,
         userDriverId: userDriverRef,
-        status: "on the way",
+        status: "requested",
         deliveryType: deliveryOption,
         bagsDelivered: 0,
         potentialEarnings: 0,
@@ -369,7 +369,7 @@ export default function OrderBags() {
       </Text>
 
       <Text style={{ marginTop: 20, fontWeight: "bold" }}>
-        Delivery method: Mail it to me
+        Delivery method: Deliver it to me
       </Text>
 
       <View
