@@ -100,6 +100,10 @@ const ProfileScreen = () => {
         <Text style={styles.buttonText}>Earnings</Text>
       </TouchableOpacity>
 
+      <TouchableOpacity style={styles.button} onPress={() => router.push("/(driver)/profile/support")}>
+        <Text style={styles.buttonText}>Support</Text>
+      </TouchableOpacity>
+
       <TouchableOpacity style={styles.logOut} onPress={() => auth.signOut()}>
         <Text style={styles.buttonText}>Log out</Text>
       </TouchableOpacity>

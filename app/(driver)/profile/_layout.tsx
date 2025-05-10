@@ -7,6 +7,7 @@ export default function ProfileLayout() {
       <Stack.Screen name="settings" options={{ headerShown: true, title: "Settings" }} />
       <Stack.Screen name="payments" options={{ headerShown: true, title: "Payments" }} />
       <Stack.Screen name="rewards" options={{ headerShown: true, title: "Rewards" }} />
+      <Stack.Screen name="support" options={{ headerShown: true, title: "Support" }} />
     </Stack>
   );
 }
