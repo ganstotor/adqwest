@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+
 import {
   View,
   Text,
@@ -28,6 +30,8 @@ import { app } from "../../../firebaseConfig";
 import stateAbbrMap from "../../../utils/stateAbbreviations";
 
 const db = getFirestore(app);
+
+const storage = getStorage(app);
 
 const calculateTargetObjective = (bagsCount: number): number => {
   if (bagsCount === 25) return 23;
@@ -84,27 +88,18 @@ const CompleteDrop = () => {
 
     setIsSubmitting(true);
     try {
-      // 1. Загрузить фото в Cloudinary
-      const formData = new FormData();
-      formData.append("file", {
-        uri: photo.uri,
-        name: "drop_photo.jpg",
-        type: "image/jpeg",
-      } as any);
-      formData.append("upload_preset", "drop_photos");
+      // 1. Загрузить фото в Firebase Storage
+      const response = await fetch(photo.uri);
+      const blob = await response.blob();
 
-      const uploadResponse = await axios.post(
-        "https://api.cloudinary.com/v1_1/dae8c4cok/image/upload",
-        formData,
-        {
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "multipart/form-data",
-          },
-        }
+      const photoRef = ref(
+        storage,
+        `drop_photos/${missionId}_${Date.now()}.jpg`
       );
+      await uploadBytes(photoRef, blob);
 
-      const photoUrl = uploadResponse.data.secure_url;
+      const photoUrl = await getDownloadURL(photoRef);
+
       if (!photoUrl) throw new Error("No photo URL returned");
 
       // 2. Получить данные миссии
@@ -188,18 +183,18 @@ const CompleteDrop = () => {
           potentialEarnings?: number;
           status?: string;
         };
-      
+
         const currentDelivered = campaignData.bagsDelivered ?? 0;
         const bagsCount = campaignData.bagsCount ?? 0;
         const target = calculateTargetObjective(bagsCount);
         const newDelivered = currentDelivered + 1;
-      
+
         const currentPotential = campaignData.potentialEarnings ?? 0;
         const currentEarned = campaignData.currentEarnings ?? 0;
-      
+
         let newPotential = currentPotential;
         let newCurrent = currentEarned;
-      
+
         if (newDelivered < target) {
           newPotential += 1;
         } else {
@@ -210,30 +205,31 @@ const CompleteDrop = () => {
             newCurrent += 1;
           }
         }
-      
+
         const updates: any = {
           bagsDelivered: newDelivered,
           potentialEarnings: newPotential,
           currentEarnings: newCurrent,
         };
-      
+
         if (newDelivered >= bagsCount) {
           updates.status = "completed";
         }
-      
+
         await updateDoc(driverCampaignRef, updates);
-      
+
         // обновить в user_driver
         const userDriverSnap = await getDoc(userDriverRef);
         if (userDriverSnap.exists()) {
-          const userData = userDriverSnap.data() as { currentEarnings?: number };
+          const userData = userDriverSnap.data() as {
+            currentEarnings?: number;
+          };
           const userCurrent = userData.currentEarnings ?? 0;
           await updateDoc(userDriverRef, {
             currentEarnings: userCurrent + (newCurrent - currentEarned),
           });
         }
       }
-      
 
       // 4. Получить и обновить статистику водителя
       const userDriverSnap = await getDoc(userDriverRef);
@@ -294,7 +290,7 @@ const CompleteDrop = () => {
         uncompletedMissionsCount: newUncompleted,
         rank: newRank,
       });
-      
+
       Alert.alert("Success", "Mission completed successfully");
 
       // 5. Навигация

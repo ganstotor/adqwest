@@ -16,8 +16,8 @@ const { width } = Dimensions.get("window");
 const slides = [
   {
     id: "1",
-    title: "What is bagR?",
-    text: " bagR transforms gig economy delivery networks into a powerful advertising and product distribution channel. We connect businesses with delivery drivers from platforms like DoorDash, UberEats, and Grubhub—turning every delivery into a branded marketing opportunity.",
+    title: "What is adqwest?",
+    text: " adqwest transforms gig economy delivery networks into a powerful advertising and product distribution channel. We connect businesses with delivery drivers from platforms like DoorDash, UberEats, and Grubhub—turning every delivery into a branded marketing opportunity.",
   },
   {
     id: "2",
@@ -41,7 +41,7 @@ const WelcomeScreen: React.FC = () => {
     <SafeAreaView style={styles.container}>
             <Image
         source={require("@/assets/images/logo.png")}
-        style={styles.bagrImage}
+        style={styles.adqwestImage}
       />
       <FlatList
       
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
   },
-  bagrImage: {
+  adqwestImage: {
     top: 200,
     width: 150,
     height: 150,

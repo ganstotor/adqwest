@@ -1,4 +1,4 @@
-package com.bagr
+package com.adqwest
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build
