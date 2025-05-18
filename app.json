@@ -11,9 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "googleServicesFile": "./GoogleService-Info.plist",
-      "runtimeVersion": {
-        "policy": "appVersion"
-      },
+      "runtimeVersion": "1.0.0",
       "bundleIdentifier": "com.adqwest.app"
     },
     "android": {
