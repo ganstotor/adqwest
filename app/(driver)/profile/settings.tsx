@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  ScrollView,
 } from "react-native";
 import {
   getAuth,
@@ -19,7 +20,6 @@ import {
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import * as ImagePicker from "expo-image-picker";
 import { db, storage } from "../../../firebaseConfig";
-import { ScrollView } from "react-native";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const SettingsScreen = () => {
@@ -47,6 +47,12 @@ const SettingsScreen = () => {
     return unsubscribe;
   }, []);
 
+  const uriToBlob = async (uri: string) => {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    return blob;
+  };
+
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
@@ -68,23 +74,22 @@ const SettingsScreen = () => {
       const localUri = result.assets[0].uri;
 
       try {
-        const response = await fetch(localUri);
-        const blob = await response.blob();
+        const blob = await uriToBlob(localUri);
 
-        // Загружаем фото в Storage
         const storageRef = ref(storage, `avatars/${userId}.jpg`);
         await uploadBytes(storageRef, blob);
 
-        // Получаем публичный URL
         const downloadURL = await getDownloadURL(storageRef);
+
         setAvatar(downloadURL);
 
-        // Сохраняем URL аватара сразу в Firestore
         const userDocRef = doc(db, "users_driver", userId);
         await setDoc(userDocRef, { avatar: downloadURL }, { merge: true });
       } catch (error) {
-        console.error("Firebase Storage upload error:", error);
-        Alert.alert("Upload error", "Could not upload avatar. Please try again.");
+        Alert.alert(
+          "Upload error",
+          "Could not upload avatar. Please try again."
+        );
       }
     }
   };
@@ -92,7 +97,7 @@ const SettingsScreen = () => {
   const saveSettings = async () => {
     if (userId) {
       const ref = doc(db, "users_driver", userId);
-      await setDoc(ref, { name }, { merge: true }); // сохраняем только имя, avatar уже обновлен отдельно
+      await setDoc(ref, { name }, { merge: true });
       Alert.alert("Saved", "Settings updated successfully");
     }
   };
@@ -120,7 +125,6 @@ const SettingsScreen = () => {
         setNewPassword("");
         setConfirmPassword("");
       } catch (error) {
-        console.error("Password change error:", error);
         Alert.alert(
           "Error",
           "Failed to change password. Please check your credentials and try again."
