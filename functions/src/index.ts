@@ -7,8 +7,7 @@ admin.initializeApp();
 const db = admin.firestore();
 
 const STRIPE_CLIENT_ID = "ca_K25mRG1FRUEnwix6E4o71jx1JXwulM8r";
-const STRIPE_SECRET_KEY =
-  "***REMOVED***";
+const STRIPE_SECRET_KEY = functions.config().stripe.secret;
 const STRIPE_REDIRECT_URI =
   "https://us-central1-deployed-c1878.cloudfunctions.net/stripeOAuth/stripe-oauth-callback";
 
