@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, Image, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
-import { useRouter, useFocusEffect } from "expo-router";
+import { useRouter } from "expo-router";
 import { auth, db } from '../../../firebaseConfig';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 const ranks = [
@@ -19,38 +19,37 @@ const ProfileScreen = () => {
   const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(getAuth(), (user) => {
+    const unsubscribeAuth = onAuthStateChanged(getAuth(), (user) => {
       if (!user) {
         router.replace('/');
       } else {
         setUserId(user.uid);
       }
     });
-
-    return () => unsubscribe();
+    return () => unsubscribeAuth();
   }, []);
 
-  const fetchUserData = async () => {
+  useEffect(() => {
     if (!userId) return;
-    setLoading(true);
-    const ref = doc(db, 'users_driver', userId);
-    const snap = await getDoc(ref);
-    if (snap.exists()) {
-      const data = snap.data();
-      setUserData({
-        name: data.name || 'No name',
-        avatar: data.avatar,
-        rank: data.rank, // предполагаем, что поле rank есть в users_driver
-      });
-    }
-    setLoading(false);
-  };
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchUserData();
-    }, [userId])
-  );
+    setLoading(true);
+    const unsubscribeSnapshot = onSnapshot(doc(db, 'users_driver', userId), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setUserData({
+          name: data.name || 'No name',
+          avatar: data.avatar,
+          rank: data.rank,
+        });
+      }
+      setLoading(false);
+    }, (error) => {
+      console.error("Firestore onSnapshot error:", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribeSnapshot();
+  }, [userId]);
 
   if (loading || !userData) {
     return (
@@ -60,7 +59,6 @@ const ProfileScreen = () => {
     );
   }
 
-  // Найти ранг в массиве
   const userRank = ranks.find(r => r.name === userData.rank);
 
   return (
@@ -79,7 +77,6 @@ const ProfileScreen = () => {
         )}
       </View>
 
-      {/* Отображение ранга */}
       {userRank && (
         <View style={styles.rankContainer}>
           <Text style={styles.rankText}>{userRank.name}</Text>
@@ -87,7 +84,6 @@ const ProfileScreen = () => {
         </View>
       )}
 
-      {/* Кнопки */}
       <TouchableOpacity style={styles.button} onPress={() => router.push("/(driver)/profile/settings")}>
         <Text style={styles.buttonText}>Settings</Text>
       </TouchableOpacity>

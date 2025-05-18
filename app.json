@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "bagr",
-    "slug": "bagr",
+    "name": "adqwest",
+    "slug": "adqwest",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
-    "scheme": "bagr",
+    "scheme": "adqwest",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -14,12 +14,17 @@
       "runtimeVersion": {
         "policy": "appVersion"
       },
-      "bundleIdentifier": "com.bagr.app"
-
+      "bundleIdentifier": "com.adqwest.app"
     },
     "android": {
       "googleServicesFile": "./google-services.json",
       "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "INTERNET",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "android.permission.CAMERA",
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "INTERNET",
@@ -31,7 +36,7 @@
         "foregroundImage": "./assets/images/logo.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.bagr",
+      "package": "com.adqwest",
       "runtimeVersion": "1.0.0"
     },
     "web": {
@@ -43,8 +48,7 @@
       "expo-router",
       "@react-native-google-signin/google-signin",
       "expo-secure-store",
-      "expo-barcode-scanner",
-      "expo-firebase-core"
+      "expo-barcode-scanner"
     ],
     "splash": {
       "image": "./assets/images/logo.png",
@@ -59,11 +63,12 @@
         "origin": false
       },
       "eas": {
-        "projectId": "357f1703-33e2-4099-8a88-ed573b6e99e3"
+        "projectId": "e8843650-d61f-4805-a308-b51d1e90d2ff"
       }
     },
     "updates": {
-      "url": "https://u.expo.dev/357f1703-33e2-4099-8a88-ed573b6e99e3"
-    }
+      "url": "https://u.expo.dev/e8843650-d61f-4805-a308-b51d1e90d2ff"
+    },
+    "owner": "ganstotor"
   }
 }

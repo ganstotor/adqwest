@@ -1,25 +1,41 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, Button, Image, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { getAuth, onAuthStateChanged, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import * as ImagePicker from 'expo-image-picker';
-import { db } from '../../../firebaseConfig';
-import { ScrollView } from 'react-native';
+import React, { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  Image,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+} from "react-native";
+import {
+  getAuth,
+  onAuthStateChanged,
+  updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+} from "firebase/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import * as ImagePicker from "expo-image-picker";
+import { db, storage } from "../../../firebaseConfig";
+import { ScrollView } from "react-native";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const SettingsScreen = () => {
-  const [name, setName] = useState('');
+  const [name, setName] = useState("");
   const [avatar, setAvatar] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [oldPassword, setOldPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   useEffect(() => {
     const auth = getAuth();
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUserId(user.uid);
-        const docRef = doc(db, 'users_driver', user.uid);
+        const docRef = doc(db, "users_driver", user.uid);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           const data = docSnap.data();
@@ -33,59 +49,51 @@ const SettingsScreen = () => {
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission denied', 'Permission to access media library is required!');
+    if (status !== "granted") {
+      Alert.alert(
+        "Permission denied",
+        "Permission to access media library is required!"
+      );
       return;
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.5,
     });
 
-    if (!result.canceled && result.assets.length > 0) {
+    if (!result.canceled && result.assets.length > 0 && userId) {
       const localUri = result.assets[0].uri;
 
       try {
-        const formData = new FormData();
-        formData.append('file', {
-          uri: localUri,
-          name: 'avatar.jpg',
-          type: 'image/jpeg',
-        } as any);
-        formData.append('upload_preset', 'drop_photos');
+        const response = await fetch(localUri);
+        const blob = await response.blob();
 
-        const uploadResponse = await fetch(
-          'https://api.cloudinary.com/v1_1/dae8c4cok/image/upload',
-          {
-            method: 'POST',
-            body: formData,
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-          }
-        );
+        // Загружаем фото в Storage
+        const storageRef = ref(storage, `avatars/${userId}.jpg`);
+        await uploadBytes(storageRef, blob);
 
-        const uploadData = await uploadResponse.json();
-        if (uploadData.secure_url) {
-          setAvatar(uploadData.secure_url);
-        } else {
-          throw new Error('Upload failed');
-        }
+        // Получаем публичный URL
+        const downloadURL = await getDownloadURL(storageRef);
+        setAvatar(downloadURL);
+
+        // Сохраняем URL аватара сразу в Firestore
+        const userDocRef = doc(db, "users_driver", userId);
+        await setDoc(userDocRef, { avatar: downloadURL }, { merge: true });
       } catch (error) {
-        console.error('Cloudinary upload error:', error);
-        Alert.alert('Upload error', 'Could not upload avatar. Please try again.');
+        console.error("Firebase Storage upload error:", error);
+        Alert.alert("Upload error", "Could not upload avatar. Please try again.");
       }
     }
   };
 
   const saveSettings = async () => {
     if (userId) {
-      const ref = doc(db, 'users_driver', userId);
-      await setDoc(ref, { name, avatar }, { merge: true });
-      Alert.alert('Saved', 'Settings updated successfully');
+      const ref = doc(db, "users_driver", userId);
+      await setDoc(ref, { name }, { merge: true }); // сохраняем только имя, avatar уже обновлен отдельно
+      Alert.alert("Saved", "Settings updated successfully");
     }
   };
 
@@ -95,29 +103,31 @@ const SettingsScreen = () => {
 
     if (user && oldPassword && newPassword && confirmPassword) {
       if (newPassword !== confirmPassword) {
-        Alert.alert('Error', 'New password and confirm password do not match');
+        Alert.alert("Error", "New password and confirm password do not match");
         return;
       }
 
       try {
-        // Create credentials for re-authentication
-        const credential = EmailAuthProvider.credential(user.email || '', oldPassword);
+        const credential = EmailAuthProvider.credential(
+          user.email || "",
+          oldPassword
+        );
 
-        // Re-authenticate user
         await reauthenticateWithCredential(user, credential);
-
-        // Update the password
         await updatePassword(user, newPassword);
-        Alert.alert('Success', 'Password changed successfully');
-        setOldPassword('');
-        setNewPassword('');
-        setConfirmPassword('');
+        Alert.alert("Success", "Password changed successfully");
+        setOldPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
       } catch (error) {
-        console.error('Password change error:', error);
-        Alert.alert('Error', 'Failed to change password. Please check your credentials and try again.');
+        console.error("Password change error:", error);
+        Alert.alert(
+          "Error",
+          "Failed to change password. Please check your credentials and try again."
+        );
       }
     } else {
-      Alert.alert('Error', 'Please fill all fields.');
+      Alert.alert("Error", "Please fill all fields.");
     }
   };
 
@@ -125,7 +135,7 @@ const SettingsScreen = () => {
     <ScrollView contentContainerStyle={styles.scrollContainer}>
       <View style={styles.container}>
         <Text style={styles.title}>Settings</Text>
-  
+
         <TouchableOpacity onPress={pickImage}>
           <View style={styles.avatarWrapper}>
             {avatar ? (
@@ -137,7 +147,7 @@ const SettingsScreen = () => {
             )}
           </View>
         </TouchableOpacity>
-  
+
         <View style={styles.inputContainer}>
           <Text style={styles.label}>Name</Text>
           <TextInput
@@ -147,12 +157,12 @@ const SettingsScreen = () => {
             onChangeText={setName}
           />
         </View>
-  
+
         <Button title="Save Settings" onPress={saveSettings} />
-  
+
         <View style={styles.passwordChangeContainer}>
           <Text style={styles.passwordChangeTitle}>Change Password</Text>
-  
+
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Old Password</Text>
             <TextInput
@@ -163,7 +173,7 @@ const SettingsScreen = () => {
               onChangeText={setOldPassword}
             />
           </View>
-  
+
           <View style={styles.inputContainer}>
             <Text style={styles.label}>New Password</Text>
             <TextInput
@@ -174,7 +184,7 @@ const SettingsScreen = () => {
               onChangeText={setNewPassword}
             />
           </View>
-  
+
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Confirm New Password</Text>
             <TextInput
@@ -185,7 +195,7 @@ const SettingsScreen = () => {
               onChangeText={setConfirmPassword}
             />
           </View>
-  
+
           <Button title="Change Password" onPress={handlePasswordChange} />
         </View>
       </View>
@@ -197,39 +207,39 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    fontWeight: "bold",
+    textAlign: "center",
     marginBottom: 30,
   },
   avatarWrapper: {
-    alignSelf: 'center',
+    alignSelf: "center",
     width: 120,
     height: 120,
     borderRadius: 60,
     borderWidth: 2,
-    borderColor: '#aaa',
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderColor: "#aaa",
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 25,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   avatar: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   placeholder: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#eee',
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#eee",
   },
   placeholderText: {
-    color: '#777',
+    color: "#777",
     fontSize: 16,
   },
   inputContainer: {
@@ -238,11 +248,11 @@ const styles = StyleSheet.create({
   label: {
     marginBottom: 5,
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     borderRadius: 8,
     padding: 10,
     fontSize: 16,
@@ -252,15 +262,14 @@ const styles = StyleSheet.create({
   },
   passwordChangeTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 15,
   },
   scrollContainer: {
     flexGrow: 1,
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
   },
-  
 });
 
 export default SettingsScreen;

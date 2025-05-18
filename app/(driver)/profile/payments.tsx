@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   View,
   Text,
-  TextInput,
-  Button,
   StyleSheet,
   Alert,
   FlatList,
+  ActivityIndicator,
+  TouchableOpacity,
+  Linking,
 } from "react-native";
 import { getAuth } from "firebase/auth";
 import {
   doc,
   getDoc,
-  setDoc,
   collection,
   query,
   where,
@@ -28,12 +29,12 @@ interface Payment {
 
 export default function PaymentsScreen() {
   const [currentUserUID, setCurrentUserUID] = useState<string | null>(null);
-  const [routingNumber, setRoutingNumber] = useState("");
-  const [accountNumber, setAccountNumber] = useState("");
-  const [earnings, setEarnings] = useState<number>(0); // currentEarnings
+  const [earnings, setEarnings] = useState<number>(0);
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [isEditing, setIsEditing] = useState(false);
   const [potentialEarnings, setPotentialEarnings] = useState<number>(0);
+  const [stripeConnected, setStripeConnected] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [stripeRestricted, setStripeRestricted] = useState<boolean>(false);
 
   const loadPotentialEarningsFromCampaigns = async (uid: string) => {
     const userRef = doc(db, "users_driver", uid);
@@ -41,20 +42,27 @@ export default function PaymentsScreen() {
       collection(db, "driver_campaigns"),
       where("userDriverId", "==", userRef)
     );
-  
+
     const snapshot = await getDocs(q);
     let total = 0;
-  
+
     snapshot.forEach((doc) => {
       const data = doc.data();
       if (typeof data.potentialEarnings === "number") {
         total += data.potentialEarnings;
       }
     });
-  
+
     setPotentialEarnings(total);
   };
-  
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (currentUserUID) {
+        loadUserData(currentUserUID); // это обновит stripeConnected
+      }
+    }, [currentUserUID])
+  );
 
   useEffect(() => {
     const auth = getAuth();
@@ -64,7 +72,6 @@ export default function PaymentsScreen() {
         await loadUserData(user.uid);
         await loadPayments(user.uid);
         await loadPotentialEarningsFromCampaigns(user.uid);
-
       }
     });
 
@@ -76,14 +83,36 @@ export default function PaymentsScreen() {
     const snap = await getDoc(ref);
     if (snap.exists()) {
       const data = snap.data();
-      setRoutingNumber(data.routing || "");
-      setAccountNumber(data.account || "");
       setEarnings(data.currentEarnings || 0);
+      const stripeId = data.stripeId;
+      const isConnected = !!stripeId;
+      setStripeConnected(isConnected);
+
+      if (isConnected) {
+        try {
+          const response = await fetch(
+            "https://us-central1-deployed-c1878.cloudfunctions.net/stripeOAuth/check-account-status",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ stripeId }),
+            }
+          );
+          if (!response.ok) {
+            const text = await response.text();
+            console.error("Ошибка от сервера:", response.status, text);
+            throw new Error(`Server returned status ${response.status}`);
+          }
+          const result = await response.json();
+          const isRestricted = !result.payouts_enabled;
+          setStripeRestricted(isRestricted);
+          console.log("Stripe restricted:", isRestricted);
+        } catch (err) {
+          console.warn("Unable to verify Stripe account:", err);
+        }
+      }
     }
   };
-
-  
-
 
   const loadPayments = async (uid: string) => {
     const ref = doc(db, "users_driver", uid);
@@ -106,43 +135,43 @@ export default function PaymentsScreen() {
     setPayments(result);
   };
 
-  const validateBankInfo = () => {
-    if (routingNumber.length !== 9) {
-      Alert.alert("Invalid Routing Number", "Routing number must be 9 digits.");
-      return false;
-    }
-    if (accountNumber.length < 6 || accountNumber.length > 17) {
-      Alert.alert(
-        "Invalid Account Number",
-        "Account number must be between 6 and 17 digits."
-      );
-      return false;
-    }
-    return true;
-  };
+  const handleStripeConnect = async () => {
+    if (!currentUserUID) return;
 
-  const handleSaveBankInfo = async () => {
-    if (accountNumber.length < 6) {
-      alert("Account Number must be at least 6 digits long");
-      return;
-    }
-    if (!validateBankInfo() || !currentUserUID) return;
-
+    setLoading(true);
     try {
-      await setDoc(
-        doc(db, "users_driver", currentUserUID),
-        {
-          routing: routingNumber,
-          account: accountNumber,
+      const response = await fetch("https://us-central1-deployed-c1878.cloudfunctions.net/stripeOAuth/create-oauth-link", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-        { merge: true }
-      );
+        body: JSON.stringify({
+          uid: currentUserUID,
+        }),
+      });
 
-      setIsEditing(false);
-      Alert.alert("Saved", "Bank information updated successfully.");
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Server error:", errorText);
+        throw new Error(`Server responded with status ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.url) {
+        await Linking.openURL(data.url);
+      } else {
+        console.error("No URL in response:", data);
+        Alert.alert("Error", "Failed to get Stripe URL");
+      }
     } catch (error) {
-      console.error("Error saving bank info", error);
-      Alert.alert("Error", "Failed to save bank information.");
+      console.error("Stripe connection error:", error);
+      Alert.alert(
+        "Error",
+        "Unable to connect to Stripe. Please try again later."
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -158,38 +187,51 @@ export default function PaymentsScreen() {
         </Text>
       </View>
 
-      {!isEditing ? (
-        <View style={styles.cardContainer}>
-          <Text style={styles.cardTitle}>Bank Info</Text>
-          <Text style={styles.text}>Routing Number: {routingNumber}</Text>
-          <Text style={styles.text}>Account Number: {accountNumber}</Text>
-          <View style={styles.editButtonContainer}>
-            <Button title="Edit" onPress={() => setIsEditing(true)} />
+      <View style={styles.stripeSection}>
+        {stripeConnected ? (
+          <View>
+            <View style={styles.connectedStatus}>
+              <Text style={styles.connectedText}>✓ Connected to Stripe</Text>
+            </View>
+            {stripeRestricted && (
+              <View style={styles.warningBox}>
+                <Text style={styles.warningText}>
+                  Your Stripe account is connected but not fully verified. You
+                  won't be able to receive payouts until verification is
+                  complete.
+                </Text>
+                <TouchableOpacity
+                  style={styles.verifyButton}
+                  onPress={handleStripeConnect}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <Text style={styles.verifyButtonText}>
+                      Complete Verification
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
-        </View>
-      ) : (
-        <View style={styles.formContainer}>
-          <TextInput
-            placeholder="Routing Number"
-            keyboardType="numeric"
-            value={routingNumber}
-            onChangeText={setRoutingNumber}
-            style={styles.input}
-            maxLength={9}
-          />
-          <TextInput
-            placeholder="Account Number"
-            keyboardType="numeric"
-            value={accountNumber}
-            onChangeText={setAccountNumber}
-            style={styles.input}
-            maxLength={17}
-          />
-          <View style={styles.saveButtonContainer}>
-            <Button title="Save" onPress={handleSaveBankInfo} />
-          </View>
-        </View>
-      )}
+        ) : (
+          <TouchableOpacity
+            style={styles.connectButton}
+            onPress={handleStripeConnect}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+              <Text style={styles.connectButtonText}>
+                Connect Stripe Account
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
+      </View>
 
       <Text style={styles.subTitle}>Payment History</Text>
       <FlatList
@@ -241,36 +283,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#00aa00",
   },
-  formContainer: {
-    marginBottom: 20,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
-  },
-  cardContainer: {
-    marginBottom: 20,
-  },
-  cardTitle: {
-    fontWeight: "bold",
-    marginBottom: 10,
-    fontSize: 16,
-  },
-  text: {
-    marginBottom: 8,
-    fontSize: 15,
-  },
-  editButtonContainer: {
-    marginTop: 10,
-    alignSelf: "flex-start",
-  },
-  saveButtonContainer: {
-    marginTop: 10,
-    alignSelf: "flex-start",
-  },
   paymentItem: {
     padding: 12,
     borderBottomWidth: 1,
@@ -291,8 +303,57 @@ const styles = StyleSheet.create({
   },
   potentialText: {
     fontSize: 13,
-    color: '#666',
+    color: "#666",
     marginTop: 4,
   },
-  
+  stripeSection: {
+    marginVertical: 15,
+    padding: 15,
+    backgroundColor: "#f8f9fa",
+    borderRadius: 10,
+  },
+  connectedStatus: {
+    padding: 10,
+    backgroundColor: "#e8f5e9",
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  connectedText: {
+    color: "#2e7d32",
+    fontWeight: "bold",
+  },
+  connectButton: {
+    backgroundColor: "#6772e5",
+    padding: 15,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  connectButtonText: {
+    color: "#ffffff",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  warningBox: {
+    marginTop: 10,
+    padding: 12,
+    backgroundColor: "#fff3cd",
+    borderRadius: 8,
+    borderColor: "#ffeeba",
+    borderWidth: 1,
+  },
+  warningText: {
+    color: "#856404",
+    fontSize: 14,
+    marginBottom: 10,
+  },
+  verifyButton: {
+    backgroundColor: "#ff9900",
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  verifyButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
 });

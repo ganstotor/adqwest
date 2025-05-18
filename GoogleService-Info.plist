@@ -2,22 +2,18 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CLIENT_ID</key>
-	<string>529539787830-dbdse95utj7ntfjqoq5jcpv91gdtcgcb.apps.googleusercontent.com</string>
-	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.529539787830-dbdse95utj7ntfjqoq5jcpv91gdtcgcb</string>
 	<key>API_KEY</key>
-	<string>AIzaSyD5Ytj4fuXI3ZuBWQZiIjr4IW6XRQ6d7Ow</string>
+	<string>AIzaSyBQY5dPYfdeFZCeR-NPWDKOAaNlxXtSn_w</string>
 	<key>GCM_SENDER_ID</key>
-	<string>529539787830</string>
+	<string>251220864547</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.bagr.app</string>
+	<string>com.adqwest</string>
 	<key>PROJECT_ID</key>
-	<string>bagr-4ed70</string>
+	<string>deployed-c1878</string>
 	<key>STORAGE_BUCKET</key>
-	<string>bagr-4ed70.firebasestorage.app</string>
+	<string>deployed-c1878.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -29,8 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:529539787830:ios:b4e1f3b06adc27ecf87c97</string>
-	<key>DATABASE_URL</key>
-	<string>https://bagr-4ed70-default-rtdb.firebaseio.com</string>
+	<string>1:251220864547:ios:e1d02127a7218554ef0b96</string>
 </dict>
 </plist>
