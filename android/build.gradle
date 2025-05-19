@@ -38,7 +38,7 @@ allprojects {
         google()
         mavenCentral()
         maven { url 'https://www.jitpack.io' }
-                maven {
+        maven {
             url "https://api.mapbox.com/downloads/v2/releases/maven"
             credentials {
                 username = "mapbox"
