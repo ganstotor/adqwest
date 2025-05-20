@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,8 +11,15 @@ import { auth, db } from "../firebaseConfig";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithCredential,
 } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
+
+import * as Google from "expo-auth-session/providers/google";
+import * as WebBrowser from "expo-web-browser";
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function AuthScreen() {
   const [mode, setMode] = useState<"login" | "signup">("signup");
@@ -20,6 +27,26 @@ export default function AuthScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const router = useRouter();
+
+  // Google Auth request
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+    clientId: "251220864547-nl5afre9cfa1lko18a51vbun8jhkv4mh.apps.googleusercontent.com",
+  });
+
+  useEffect(() => {
+    if (response?.type === "success") {
+      const { id_token } = response.params;
+      const credential = GoogleAuthProvider.credential(id_token);
+
+      signInWithCredential(auth, credential)
+        .then(() => {
+          router.replace("/(driver)/location");
+        })
+        .catch((error) => {
+          alert("Google Sign-In failed: " + error.message);
+        });
+    }
+  }, [response]);
 
   const handleAuth = async () => {
     try {
@@ -35,7 +62,7 @@ export default function AuthScreen() {
         await setDoc(userDocRef, {
           email: user.email,
           name: name,
-          rank: 'Recruit',
+          rank: "Recruit",
           completedMissionsCount: 0,
           uncompletedMissionsCount: 0,
           failedMissionsCount: 0,
@@ -64,9 +91,7 @@ export default function AuthScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>
-        {mode === "signup" ? "Sign Up" : "Login"}
-      </Text>
+      <Text style={styles.title}>{mode === "signup" ? "Sign Up" : "Login"}</Text>
 
       {mode === "signup" && (
         <TextInput
@@ -98,9 +123,7 @@ export default function AuthScreen() {
       </TouchableOpacity>
 
       <Text style={styles.switchText}>
-        {mode === "signup"
-          ? "Already have an account?"
-          : "Don't have an account?"}{" "}
+        {mode === "signup" ? "Already have an account?" : "Don't have an account?"}{" "}
         <Text
           style={styles.switchLink}
           onPress={() => setMode(mode === "signup" ? "login" : "signup")}
@@ -118,6 +141,15 @@ export default function AuthScreen() {
       {/* Кнопка быстрого логина */}
       <TouchableOpacity style={styles.quickButton} onPress={handleQuickLogin}>
         <Text style={styles.buttonText}>Quick Login (alex@mail.com)</Text>
+      </TouchableOpacity>
+
+      {/* Кнопка Google авторизации */}
+      <TouchableOpacity
+        style={[styles.authButton, { backgroundColor: "#4285F4", marginTop: 10 }]}
+        disabled={!request}
+        onPress={() => promptAsync()}
+      >
+        <Text style={styles.buttonText}>Sign In with Google</Text>
       </TouchableOpacity>
     </View>
   );
