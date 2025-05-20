@@ -12,7 +12,20 @@
           "package_name": "com.adqwest"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "251220864547-quoti8bdop9q4ool4n40r72pokqiqa2k.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.adqwest",
+            "certificate_hash": "3ca82ff420bbaeb874976217809d1b3eb062c185"
+          }
+        },
+        {
+          "client_id": "251220864547-nl5afre9cfa1lko18a51vbun8jhkv4mh.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDckZtfWdzfq8Lo2wYEwIGKt4t9SbbCrn8"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "251220864547-nl5afre9cfa1lko18a51vbun8jhkv4mh.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "251220864547-74vp9uqb3reulsbsshm45472l3e4k3es.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.adqwest"
+              }
+            }
+          ]
         }
       }
     }
