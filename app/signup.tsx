@@ -67,7 +67,7 @@ export default function AuthScreen() {
           uncompletedMissionsCount: 0,
           failedMissionsCount: 0,
           milesRadius: 10,
-          active: false,
+          status: "pending",
         });
 
         // После регистрации отправляем на профиль
@@ -87,7 +87,7 @@ export default function AuthScreen() {
         if (userDocSnap.exists()) {
           const userData = userDocSnap.data();
 
-          if (userData.active === true) {
+          if (userData.status === "active") {
             router.push("/(driver)/my-qwests");
           } else {
             router.push("/(driver)/profile");
