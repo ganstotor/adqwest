@@ -169,23 +169,19 @@ const MainPage: React.FC = () => {
   );
 
   const handleScanCase = () => {
-    router.push("/drops/scan-case");
-  };
-
-  const handleOrderBags = () => {
-    router.push("/drops/available-campaigns");
+    router.push("/my-qwests/scan-case");
   };
 
   const handleViewMissions = (campaignId: string) => {
     router.push({
-      pathname: "/drops/missions",
+      pathname: "/my-qwests/missions",
       params: { driverCampaignId: campaignId },
     });
   };
 
   const handleDriverCampaignDetails = (campaign: DriverCampaign) => {
     router.push({
-      pathname: "/drops/driver-campaign",
+      pathname: "/my-qwests/driver-campaign",
       params: {
         driverCampaignId: campaign.id,
       },
@@ -195,9 +191,6 @@ const MainPage: React.FC = () => {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Already have a case? Click “Scan Case”</Text>
-      <Text style={styles.title}>
-        Don’t have a case yet? Click “Order Bags”
-      </Text>
       <View style={styles.topButtons}>
         <TouchableOpacity
           style={[styles.button, { backgroundColor: "#90EE90" }]}
@@ -206,12 +199,6 @@ const MainPage: React.FC = () => {
           <Text style={styles.buttonText}>Scan Case</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: "#FFA500" }]}
-          onPress={handleOrderBags}
-        >
-          <Text style={styles.buttonText}>Order Bags</Text>
-        </TouchableOpacity>
       </View>
       <Text style={styles.sectionTitle}>Your Campaigns:</Text>
 

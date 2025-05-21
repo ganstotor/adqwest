@@ -86,7 +86,7 @@ const ScanBagScreen: React.FC = () => {
       userDriverId: userDriverRef,
     });
 
-    router.push({ pathname: '/drops/missions', params: { driverCampaignId } });
+    router.push({ pathname: '/my-qwests/missions', params: { driverCampaignId } });
   };
 
   // 🔽 Вариант при неизвестном статусе (еще не проверено)

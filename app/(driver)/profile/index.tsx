@@ -1,27 +1,64 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, Image, StyleSheet, TouchableOpacity, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  Image,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+} from "react-native";
 import { useRouter } from "expo-router";
-import { auth, db } from '../../../firebaseConfig';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { auth, db } from "../../../firebaseConfig";
+import { doc, onSnapshot } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 const ranks = [
-  { name: "Recruit", image: "https://49f19303af27fa52649830f7470cda8c.cdn.bubble.io/f1745483287099x211019496407986780/Sergeant.png" },
-  { name: "Sergeant", image: "https://49f19303af27fa52649830f7470cda8c.cdn.bubble.io/f1744632963112x260922741835636360/chevron.png" },
-  { name: "Captain", image: "https://49f19303af27fa52649830f7470cda8c.cdn.bubble.io/f1745483312916x330002207663850050/Captain.png" },
-  { name: "General", image: "https://49f19303af27fa52649830f7470cda8c.cdn.bubble.io/f1745485247401x540054289440982100/general.png" }
+  {
+    name: "Recruit",
+    image:
+      "https://49f19303af27fa52649830f7470cda8c.cdn.bubble.io/f1745483287099x211019496407986780/Sergeant.png",
+  },
+  {
+    name: "Sergeant",
+    image:
+      "https://49f19303af27fa52649830f7470cda8c.cdn.bubble.io/f1744632963112x260922741835636360/chevron.png",
+  },
+  {
+    name: "Captain",
+    image:
+      "https://49f19303af27fa52649830f7470cda8c.cdn.bubble.io/f1745483312916x330002207663850050/Captain.png",
+  },
+  {
+    name: "General",
+    image:
+      "https://49f19303af27fa52649830f7470cda8c.cdn.bubble.io/f1745485247401x540054289440982100/general.png",
+  },
 ];
 
 const ProfileScreen = () => {
   const router = useRouter();
-  const [userData, setUserData] = useState<{ name: string; avatar?: string; rank?: string } | null>(null);
+  const [userData, setUserData] = useState<{
+    name: string;
+    avatar?: string;
+    rank?: string;
+    active?: boolean;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [showActivationModal, setShowActivationModal] = useState(false);
+
+  useEffect(() => {
+    if (userData?.active !== true) {
+      setShowActivationModal(true);
+    } else {
+      setShowActivationModal(false);
+    }
+  }, [userData]);
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(getAuth(), (user) => {
       if (!user) {
-        router.replace('/');
+        router.replace("/");
       } else {
         setUserId(user.uid);
       }
@@ -33,20 +70,25 @@ const ProfileScreen = () => {
     if (!userId) return;
 
     setLoading(true);
-    const unsubscribeSnapshot = onSnapshot(doc(db, 'users_driver', userId), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setUserData({
-          name: data.name || 'No name',
-          avatar: data.avatar,
-          rank: data.rank,
-        });
+    const unsubscribeSnapshot = onSnapshot(
+      doc(db, "users_driver", userId),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setUserData({
+            name: data.name || "No name",
+            avatar: data.avatar,
+            rank: data.rank,
+            active: data.active,
+          });
+        }
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Firestore onSnapshot error:", error);
+        setLoading(false);
       }
-      setLoading(false);
-    }, (error) => {
-      console.error("Firestore onSnapshot error:", error);
-      setLoading(false);
-    });
+    );
 
     return () => unsubscribeSnapshot();
   }, [userId]);
@@ -59,10 +101,23 @@ const ProfileScreen = () => {
     );
   }
 
-  const userRank = ranks.find(r => r.name === userData.rank);
+  const userRank = ranks.find((r) => r.name === userData.rank);
 
   return (
     <View style={styles.container}>
+      {showActivationModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalText}>
+              Пожалуйста, активируйте ваш профиль.
+            </Text>
+            {/* Убираем кнопку закрытия, чтобы нельзя было закрыть */}
+            <TouchableOpacity onPress={() => setShowActivationModal(false)}>
+              <Text style={styles.modalButton}>Ок</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
       <View style={styles.avatarWrapper}>
         {userData.avatar ? (
           <Image
@@ -84,20 +139,46 @@ const ProfileScreen = () => {
         </View>
       )}
 
-      <TouchableOpacity style={styles.button} onPress={() => router.push("/(driver)/profile/settings")}>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => router.push("/(driver)/profile/settings")}
+      >
         <Text style={styles.buttonText}>Settings</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.button} onPress={() => router.push("/(driver)/profile/rewards")}>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => router.push("/(driver)/profile/rewards")}
+      >
         <Text style={styles.buttonText}>Rewards</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.button} onPress={() => router.push("/(driver)/profile/payments")}>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => router.push("/(driver)/profile/payments")}
+      >
         <Text style={styles.buttonText}>Earnings</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.button} onPress={() => router.push("/(driver)/profile/support")}>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => router.push("/(driver)/profile/support")}
+      >
         <Text style={styles.buttonText}>Support</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => router.push("/(driver)/profile/location")}
+      >
+        <Text style={styles.buttonText}>Location</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() => router.push("/(driver)/profile/location-google")}
+      >
+        <Text style={styles.buttonText}>Location Google</Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.logOut} onPress={() => auth.signOut()}>
@@ -120,30 +201,30 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     borderWidth: 2,
-    borderColor: '#aaa',
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderColor: "#aaa",
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 10,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   avatar: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   placeholder: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#eee',
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#eee",
+    justifyContent: "center",
+    alignItems: "center",
   },
   placeholderText: {
-    color: '#777',
+    color: "#777",
     fontSize: 14,
   },
   rankContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 20,
   },
   rankIcon: {
@@ -152,7 +233,7 @@ const styles = StyleSheet.create({
   },
   rankText: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   button: {
     backgroundColor: "#007bff",
@@ -169,12 +250,40 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   logOut: {
-    backgroundColor: '#FF9800',
+    backgroundColor: "#FF9800",
     padding: 12,
     borderRadius: 5,
-    width: '80%',
-    alignItems: 'center',
+    width: "80%",
+    alignItems: "center",
     marginVertical: 5,
+  },
+  modalOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1000, // высокий индекс, чтобы перекрыть табы
+    pointerEvents: "auto", // чтобы перехватывать клики
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 10,
+    width: "80%",
+    alignItems: "center",
+  },
+  modalText: {
+    fontSize: 16,
+    marginBottom: 10,
+  },
+  modalButton: {
+    color: "#007bff",
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });
 

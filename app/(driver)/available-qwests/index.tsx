@@ -116,7 +116,7 @@ const OrderBagsScreen = () => {
 
   const handleOrderBags = (campaign: any) => {
     router.push(
-      `/drops/order-bags?campaignId=${campaign.id}&userAdId=${campaign.userAdId}`
+      `/available-qwests/order-bags?campaignId=${campaign.id}&userAdId=${campaign.userAdId}`
     );
   };
 
@@ -190,19 +190,18 @@ const OrderBagsScreen = () => {
           <Text style={{ marginBottom: 15 }}>
             We’re coming to your area soon! :)
           </Text>
-          <Link href="/location" asChild>
             <TouchableOpacity
               style={{
                 padding: 10,
                 backgroundColor: "#007aff",
                 borderRadius: 6,
               }}
+              onPress={() => router.push("/(driver)/profile/location")}
             >
               <Text style={{ color: "white", textAlign: "center" }}>
                 Would you like to choose a different area?
               </Text>
             </TouchableOpacity>
-          </Link>
         </View>
       )}
     </View>

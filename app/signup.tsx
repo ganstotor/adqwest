@@ -14,8 +14,7 @@ import {
   GoogleAuthProvider,
   signInWithCredential,
 } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
-
+import { doc, setDoc, getDoc } from "firebase/firestore";
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
 
@@ -30,7 +29,8 @@ export default function AuthScreen() {
 
   // Google Auth request
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: "251220864547-nl5afre9cfa1lko18a51vbun8jhkv4mh.apps.googleusercontent.com",
+    clientId:
+      "251220864547-nl5afre9cfa1lko18a51vbun8jhkv4mh.apps.googleusercontent.com",
   });
 
   useEffect(() => {
@@ -40,7 +40,7 @@ export default function AuthScreen() {
 
       signInWithCredential(auth, credential)
         .then(() => {
-          router.replace("/(driver)/location");
+          router.push("/(driver)/my-qwests" as any);
         })
         .catch((error) => {
           alert("Google Sign-In failed: " + error.message);
@@ -67,12 +67,35 @@ export default function AuthScreen() {
           uncompletedMissionsCount: 0,
           failedMissionsCount: 0,
           milesRadius: 10,
+          active: false,
         });
-      } else {
-        await signInWithEmailAndPassword(auth, email, password);
-      }
 
-      router.replace("/(driver)/location");
+        // После регистрации отправляем на профиль
+        router.push("/(driver)/profile");
+      } else {
+        const userCredential = await signInWithEmailAndPassword(
+          auth,
+          email,
+          password
+        );
+        const user = userCredential.user;
+
+        // Получаем документ из коллекции users_driver
+        const userDocRef = doc(db, "users_driver", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data();
+
+          if (userData.active === true) {
+            router.push("/(driver)/my-qwests");
+          } else {
+            router.push("/(driver)/profile");
+          }
+        } else {
+          alert("User data not found in users_driver collection.");
+        }
+      }
     } catch (error: any) {
       alert(
         `${mode === "signup" ? "Sign up" : "Sign in"} failed: ${error.message}`
@@ -83,7 +106,7 @@ export default function AuthScreen() {
   const handleQuickLogin = async () => {
     try {
       await signInWithEmailAndPassword(auth, "alex@mail.com", "123321");
-      router.replace("/(driver)/location");
+      router.push("/(driver)/profile" as any);
     } catch (error: any) {
       alert(`Quick login failed: ${error.message}`);
     }
@@ -91,7 +114,9 @@ export default function AuthScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{mode === "signup" ? "Sign Up" : "Login"}</Text>
+      <Text style={styles.title}>
+        {mode === "signup" ? "Sign Up" : "Login"}
+      </Text>
 
       {mode === "signup" && (
         <TextInput
@@ -123,7 +148,9 @@ export default function AuthScreen() {
       </TouchableOpacity>
 
       <Text style={styles.switchText}>
-        {mode === "signup" ? "Already have an account?" : "Don't have an account?"}{" "}
+        {mode === "signup"
+          ? "Already have an account?"
+          : "Don't have an account?"}{" "}
         <Text
           style={styles.switchLink}
           onPress={() => setMode(mode === "signup" ? "login" : "signup")}
@@ -145,7 +172,10 @@ export default function AuthScreen() {
 
       {/* Кнопка Google авторизации */}
       <TouchableOpacity
-        style={[styles.authButton, { backgroundColor: "#4285F4", marginTop: 10 }]}
+        style={[
+          styles.authButton,
+          { backgroundColor: "#4285F4", marginTop: 10 },
+        ]}
         disabled={!request}
         onPress={() => promptAsync()}
       >

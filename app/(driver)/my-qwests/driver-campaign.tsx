@@ -143,14 +143,14 @@ const DriverCampaignScreen: React.FC = () => {
 
   const handleNavigateScanBag = () => {
     router.push({
-      pathname: "/drops/scan-bag",
+      pathname: "/my-qwests/scan-bag",
       params: { driverCampaignId: data.driverCampaignId },
     });
   };
 
   const handleNavigateReassign = () => {
     router.push({
-      pathname: "/drops/reassign-campaign",
+      pathname: "/my-qwests/reassign-campaign",
       params: { driverCampaignId: data.driverCampaignId },
     });
   };
