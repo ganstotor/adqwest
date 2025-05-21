@@ -127,7 +127,7 @@ const MissionPage = () => {
         <TouchableOpacity
           style={styles.completeButton}
           onPress={() =>
-            router.push({ pathname: '/drops/complete-drop', params: { missionId: item.id } })
+            router.push({ pathname: '/my-qwests/complete-drop', params: { missionId: item.id } })
           }
         >
           <Text style={styles.buttonText}>Complete Drop</Text>

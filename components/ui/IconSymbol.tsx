@@ -15,6 +15,7 @@ const MAPPING = {
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
   'person.fill': 'account-circle',
+  'bag': 'shopping-bag',
 
 } as Partial<
   Record<

@@ -11,6 +11,7 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
 
   return (
+    
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
@@ -27,18 +28,18 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="location"
+        name="my-qwests"
         options={{
-          title: "Location",
+          title: "My Qwests",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="location.fill" color={color} />
+            <IconSymbol size={28} name="bag" color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="drops"
+        name="available-qwests"
         options={{
-          title: "Drops",
+          title: "Available Qwests",
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="paperplane.fill" color={color} />
           ),

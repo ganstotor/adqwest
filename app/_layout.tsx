@@ -36,7 +36,7 @@ export default function RootLayout() {
   useEffect(() => {
     if (isAppReady) {
       if (user) {
-        router.replace("/(driver)/location"); // Если залогинен, переходим на (tabs)
+        router.replace("/(driver)/my-qwests" as any); // Если залогинен, переходим на (tabs)
       } else {
         router.replace("/"); // Иначе — на регистрацию
       }
@@ -51,7 +51,7 @@ export default function RootLayout() {
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <Stack>
         <Stack.Screen name="index" options={{ headerShown: false, headerTitle: "" }}/>
-        <Stack.Screen name="signup" options={{ headerTitle: "" }} />
+        <Stack.Screen name="signup" options={{ headerShown: false }} />
         <Stack.Screen name="(driver)" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>

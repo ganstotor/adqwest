@@ -295,7 +295,7 @@ const CompleteDrop = () => {
 
       // 5. Навигация
       router.push({
-        pathname: "/drops/missions",
+        pathname: "/my-qwests/missions",
         params: { driverCampaignId: driverCampaignRef.id },
       });
     } catch (error: any) {

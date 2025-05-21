@@ -275,7 +275,7 @@ export default function OrderBags() {
       });
   
       Alert.alert("Success", "Campaign updated successfully!");
-      router.replace("/drops");
+      router.replace("/");
     } catch (error) {
       console.error("Error adding campaign:", error);
       Alert.alert("Error", "Something went wrong.");
