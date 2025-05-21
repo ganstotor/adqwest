@@ -6,11 +6,16 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  ScrollView,
+  Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { auth, db } from "../../../firebaseConfig";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
+import * as ImagePicker from 'expo-image-picker';
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage } from "../../../firebaseConfig";
 
 const ranks = [
   {
@@ -35,20 +40,32 @@ const ranks = [
   },
 ];
 
+const deliveryApps = [
+  { id: 'uber', name: 'Uber Eats' },
+  { id: 'doordash', name: 'DoorDash' },
+  { id: 'grubhub', name: 'GrubHub' },
+  { id: 'others', name: 'Others' },
+];
+
 const ProfileScreen = () => {
   const router = useRouter();
   const [userData, setUserData] = useState<{
     name: string;
     avatar?: string;
     rank?: string;
-    active?: boolean;
+    status: string;
+    selectedApps?: string[];
+    screenshots?: string[];
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [showActivationModal, setShowActivationModal] = useState(false);
+  const [selectedApps, setSelectedApps] = useState<string[]>([]);
+  const [screenshots, setScreenshots] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
-    if (userData?.active !== true) {
+    if (userData?.status !== "active") {
       setShowActivationModal(true);
     } else {
       setShowActivationModal(false);
@@ -79,8 +96,12 @@ const ProfileScreen = () => {
             name: data.name || "No name",
             avatar: data.avatar,
             rank: data.rank,
-            active: data.active,
+            status: data.status,
+            selectedApps: data.selectedApps || [],
+            screenshots: data.screenshots || [],
           });
+          setSelectedApps(data.selectedApps || []);
+          setScreenshots(data.screenshots || []);
         }
         setLoading(false);
       },
@@ -92,6 +113,60 @@ const ProfileScreen = () => {
 
     return () => unsubscribeSnapshot();
   }, [userId]);
+
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    
+    if (status !== 'granted') {
+      alert('Sorry, we need camera roll permissions to upload screenshots!');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: false,
+      quality: 1,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setUploading(true);
+      try {
+        const response = await fetch(result.assets[0].uri);
+        const blob = await response.blob();
+        const filename = `screenshots/${userId}/${Date.now()}.jpg`;
+        const storageRef = ref(storage, filename);
+        await uploadBytes(storageRef, blob);
+        const downloadURL = await getDownloadURL(storageRef);
+        
+        const newScreenshots = [...screenshots, downloadURL];
+        setScreenshots(newScreenshots);
+        
+        if (userId) {
+          await updateDoc(doc(db, "users_driver", userId), {
+            screenshots: newScreenshots
+          });
+        }
+      } catch (error) {
+        console.error('Error uploading image:', error);
+        alert('Failed to upload image');
+      }
+      setUploading(false);
+    }
+  };
+
+  const toggleApp = async (appId: string) => {
+    const newSelectedApps = selectedApps.includes(appId)
+      ? selectedApps.filter(id => id !== appId)
+      : [...selectedApps, appId];
+    
+    setSelectedApps(newSelectedApps);
+    
+    if (userId) {
+      await updateDoc(doc(db, "users_driver", userId), {
+        selectedApps: newSelectedApps
+      });
+    }
+  };
 
   if (loading || !userData) {
     return (
@@ -108,13 +183,74 @@ const ProfileScreen = () => {
       {showActivationModal && (
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalText}>
-              Пожалуйста, активируйте ваш профиль.
-            </Text>
-            {/* Убираем кнопку закрытия, чтобы нельзя было закрыть */}
-            <TouchableOpacity onPress={() => setShowActivationModal(false)}>
-              <Text style={styles.modalButton}>Ок</Text>
-            </TouchableOpacity>
+            {userData.status === "active" ? (
+              <>
+                <Text style={styles.modalText}>
+                  Your profile is activated. You can start Qwest
+                </Text>
+                <TouchableOpacity 
+                  style={styles.modalButton}
+                  onPress={() => setShowActivationModal(false)}
+                >
+                  <Text style={styles.modalButtonText}>OK</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <ScrollView style={styles.modalScroll}>
+                  <Text style={styles.modalTitle}>Activation Questions</Text>
+                  
+                  <Text style={styles.questionText}>1. What apps do you use?</Text>
+                  <View style={styles.appsContainer}>
+                    {deliveryApps.map((app) => (
+                      <TouchableOpacity
+                        key={app.id}
+                        style={[
+                          styles.appButton,
+                          selectedApps.includes(app.id) && styles.appButtonSelected
+                        ]}
+                        onPress={() => toggleApp(app.id)}
+                      >
+                        <Text style={[
+                          styles.appButtonText,
+                          selectedApps.includes(app.id) && styles.appButtonTextSelected
+                        ]}>
+                          {app.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  <Text style={styles.questionText}>
+                    2. Please provide screenshots of your current activity with the chosen service
+                  </Text>
+                  <View style={styles.screenshotsContainer}>
+                    {screenshots.map((url, index) => (
+                      <Image
+                        key={index}
+                        source={{ uri: url }}
+                        style={styles.screenshot}
+                      />
+                    ))}
+                    <TouchableOpacity
+                      style={styles.uploadButton}
+                      onPress={pickImage}
+                      disabled={uploading}
+                    >
+                      <Text style={styles.uploadButtonText}>
+                        {uploading ? 'Uploading...' : '+ Add Screenshot'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {selectedApps.length > 0 && screenshots.length > 0 && (
+                    <Text style={styles.submitMessage}>
+                      Thank you for submitting! Please wait for our team to review it. Usually it is very quickly but sometimes can take up to 24 hours.
+                    </Text>
+                  )}
+                </ScrollView>
+              </>
+            )}
           </View>
         </View>
       )}
@@ -258,32 +394,125 @@ const styles = StyleSheet.create({
     marginVertical: 5,
   },
   modalOverlay: {
-    position: "absolute",
+    position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 1000, // высокий индекс, чтобы перекрыть табы
-    pointerEvents: "auto", // чтобы перехватывать клики
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
   },
   modalContent: {
-    backgroundColor: "#fff",
+    backgroundColor: 'white',
+    borderRadius: 20,
     padding: 20,
-    borderRadius: 10,
-    width: "80%",
-    alignItems: "center",
+    width: '90%',
+    maxHeight: '80%',
+    alignItems: 'center',
+  },
+  modalScroll: {
+    maxHeight: '100%',
+    width: '100%',
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+    width: '100%',
   },
   modalText: {
-    fontSize: 16,
-    marginBottom: 10,
+    fontSize: 18,
+    textAlign: 'center',
+    marginBottom: 20,
+    width: '100%',
   },
   modalButton: {
-    color: "#007bff",
+    backgroundColor: '#007bff',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    width: '100%',
+  },
+  modalButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  questionText: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 20,
+    marginBottom: 10,
+    textAlign: 'center',
+    width: '100%',
+  },
+  appsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 20,
+    justifyContent: 'center',
+    width: '100%',
+  },
+  appButton: {
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#007bff',
+    backgroundColor: 'white',
+    minWidth: 120,
+    alignItems: 'center',
+  },
+  appButtonSelected: {
+    backgroundColor: '#007bff',
+  },
+  appButtonText: {
+    color: '#007bff',
     fontSize: 16,
-    fontWeight: "bold",
+  },
+  appButtonTextSelected: {
+    color: 'white',
+  },
+  screenshotsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 20,
+    justifyContent: 'center',
+    width: '100%',
+  },
+  screenshot: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+  },
+  uploadButton: {
+    width: 100,
+    height: 100,
+    borderWidth: 2,
+    borderColor: '#007bff',
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  uploadButtonText: {
+    color: '#007bff',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  submitMessage: {
+    fontSize: 16,
+    color: '#28a745',
+    textAlign: 'center',
+    marginTop: 20,
+    padding: 10,
+    backgroundColor: '#e8f5e9',
+    borderRadius: 8,
+    width: '100%',
   },
 });
 
