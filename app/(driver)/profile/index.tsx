@@ -56,6 +56,7 @@ const ProfileScreen = () => {
     status: string;
     selectedApps?: string[];
     screenshots?: string[];
+    activationPopupShown?: boolean;
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
@@ -63,12 +64,17 @@ const ProfileScreen = () => {
   const [selectedApps, setSelectedApps] = useState<string[]>([]);
   const [screenshots, setScreenshots] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [showLocationPopup, setShowLocationPopup] = useState(false);
 
   useEffect(() => {
     if (userData?.status !== "active") {
       setShowActivationModal(true);
     } else {
       setShowActivationModal(false);
+    }
+
+    if (userData?.activationPopupShown) {
+      setShowLocationPopup(true);
     }
   }, [userData]);
 
@@ -99,6 +105,7 @@ const ProfileScreen = () => {
             status: data.status,
             selectedApps: data.selectedApps || [],
             screenshots: data.screenshots || [],
+            activationPopupShown: data.activationPopupShown,
           });
           setSelectedApps(data.selectedApps || []);
           setScreenshots(data.screenshots || []);
@@ -168,6 +175,16 @@ const ProfileScreen = () => {
     }
   };
 
+  const handleLocationPopupClose = async () => {
+    if (userId) {
+      await updateDoc(doc(db, "users_driver", userId), {
+        activationPopupShown: false
+      });
+      setShowLocationPopup(false);
+      router.push("/profile/location-google");
+    }
+  };
+
   if (loading || !userData) {
     return (
       <View style={styles.container}>
@@ -180,6 +197,23 @@ const ProfileScreen = () => {
 
   return (
     <View style={styles.container}>
+      {showLocationPopup && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Profile Activated!</Text>
+            <Text style={styles.modalText}>
+              Your profile has been successfully activated. To start using the app, please add your delivery location on the next screen.
+            </Text>
+            <TouchableOpacity 
+              style={styles.modalButton}
+              onPress={handleLocationPopupClose}
+            >
+              <Text style={styles.modalButtonText}>Continue to Location Setup</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {showActivationModal && (
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -406,10 +440,10 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: 'white',
-    borderRadius: 20,
     padding: 20,
+    borderRadius: 10,
     width: '90%',
-    maxHeight: '80%',
+    maxWidth: 400,
     alignItems: 'center',
   },
   modalScroll: {
@@ -417,29 +451,29 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   modalTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 20,
+    marginBottom: 15,
     textAlign: 'center',
-    width: '100%',
   },
   modalText: {
-    fontSize: 18,
+    fontSize: 16,
     textAlign: 'center',
     marginBottom: 20,
-    width: '100%',
+    lineHeight: 22,
   },
   modalButton: {
-    backgroundColor: '#007bff',
-    padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
+    backgroundColor: '#007BFF',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
     width: '100%',
   },
   modalButtonText: {
     color: 'white',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
   },
   questionText: {
     fontSize: 18,
