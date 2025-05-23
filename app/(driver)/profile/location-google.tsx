@@ -13,10 +13,10 @@ import {
 import { onAuthStateChanged, User } from "firebase/auth";
 import { doc, setDoc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "../../../firebaseConfig";
-import MapView, { Polygon } from "react-native-maps";
+import MapView, { Polygon, Marker } from "react-native-maps";
 import Icon from "react-native-vector-icons/Ionicons";
 import * as Location from "expo-location";
-import stateAbbrMap from "../../../utils/stateAbbreviations"
+import stateAbbrMap from "../../../utils/stateAbbreviations";
 
 type GeoFeature = {
   type: string;
@@ -251,42 +251,42 @@ export default function ZipMapScreen() {
   useEffect(() => {
     if (!user) return;
     const ref = doc(db, "users_driver", user.uid);
-    const unsubscribe = onSnapshot(ref, (snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
-        if (Array.isArray(data.zipCodes)) {
-          setSavedZips(data.zipCodes);
-        }
-        if (data.milesRadius) {
-          setRadius(data.milesRadius);
-          setNewRadius(String(data.milesRadius));
-        }
-        setUserDataLoaded(true);
+
+    const unsubscribe = onSnapshot(ref, async (snap) => {
+      if (!snap.exists()) return;
+
+      const data = snap.data();
+
+      // Проверка изменения координат
+      const newLat = data.location?.latitude;
+      const newLon = data.location?.longitude;
+      const locationChanged =
+        newLat !== undefined &&
+        newLon !== undefined &&
+        (newLat !== currentLocation?.latitude ||
+          newLon !== currentLocation?.longitude);
+
+      if (locationChanged) {
+        setCurrentLocation({ latitude: newLat, longitude: newLon });
+
+        const region = await getStateFromCoords(newLat, newLon);
+        setCurrentState(region || null);
       }
+
+      if (Array.isArray(data.zipCodes)) {
+        setSavedZips(data.zipCodes);
+      }
+
+      if (data.milesRadius) {
+        setRadius(data.milesRadius);
+        setNewRadius(String(data.milesRadius));
+      }
+
+      setUserDataLoaded(true);
     });
+
     return unsubscribe;
-  }, [user]);
-
-  useEffect(() => {
-    const fetchLocation = async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") return;
-
-      let location = await Location.getCurrentPositionAsync({});
-      const region = await getStateFromCoords(
-        location.coords.latitude,
-        location.coords.longitude
-      );
-
-      setCurrentLocation({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      });
-      setCurrentState(region || null);
-    };
-
-    fetchLocation();
-  }, []);
+  }, [user, currentLocation]);
 
   useEffect(() => {
     if (currentLocation && currentState && userDataLoaded) {
@@ -401,7 +401,7 @@ export default function ZipMapScreen() {
           </View>
           <View style={styles.zipScrollList}>
             <ScrollView
-              style={{ maxHeight: '90%', marginTop: 10, marginBottom: 10 }}
+              style={{ maxHeight: "90%", marginTop: 10, marginBottom: 10 }}
               horizontal={false}
               contentContainerStyle={{
                 flexDirection: "row",
@@ -521,6 +521,14 @@ export default function ZipMapScreen() {
               );
             });
           })}
+
+          {currentLocation && (
+            <Marker
+              coordinate={currentLocation}
+              pinColor="red"
+              title="Текущее местоположение"
+            />
+          )}
         </MapView>
       )}
     </View>
@@ -571,7 +579,7 @@ const styles = StyleSheet.create({
   popup: {
     position: "absolute",
     top: 70,
-    height: '90%',
+    height: "90%",
     right: 10,
     left: 10,
     backgroundColor: "white",
