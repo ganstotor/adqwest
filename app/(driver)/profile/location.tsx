@@ -16,12 +16,15 @@ import { auth, db } from "../../../firebaseConfig";
 import Icon from "react-native-vector-icons/Ionicons";
 import * as Location from "expo-location";
 
-import { haversineDistance, getStateFromCoords, findNearbyStates } from "../../../utils/geo";
+import {
+  haversineDistance,
+  getStateFromCoords,
+  findNearbyStates,
+} from "../../../utils/geo";
 import { getBoundingRegion } from "../../../utils/mapUtils";
 
-
 import type { FeatureCollection, Geometry, GeoJsonProperties } from "geojson";
-import stateAbbrMap from "../../../utils/stateAbbreviations"
+import stateAbbrMap from "../../../utils/stateAbbreviations";
 
 MapboxGL.setAccessToken(
   "pk.eyJ1IjoiZ2Fuc3RvdG9yIiwiYSI6ImNtOW55bzY0cDA0YmEycHM0dzl5NGhta3cifQ.3pjHBvYQeyD-ztr2sEYhUA"
@@ -53,6 +56,11 @@ export default function ZipMapScreen() {
     latitude: number;
     longitude: number;
   } | null>(null);
+  const [initialLocation, setInitialLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+
   const [currentState, setCurrentState] = useState<string | null>(null);
   const [radius, setRadius] = useState<number | null>(null);
   const [newRadius, setNewRadius] = useState<string>("");
@@ -61,12 +69,14 @@ export default function ZipMapScreen() {
   const boundingRegion = useMemo(() => getBoundingRegion(features), [features]);
 
   const fetchGeoJSON = async (customRadius = radius) => {
-    if (!currentLocation || customRadius == null) return;
+    const locationCenter = initialLocation ?? currentLocation;
+    if (!locationCenter || customRadius == null) return;
+
     try {
       setLoading(true);
 
       const nearbyStates = await findNearbyStates(
-        currentLocation,
+        locationCenter,
         customRadius,
         currentState
       );
@@ -80,6 +90,7 @@ export default function ZipMapScreen() {
         const url = `https://raw.githubusercontent.com/OpenDataDE/State-zip-code-GeoJSON/master/${abbr}_${state
           .toLowerCase()
           .replace(/ /g, "_")}_zip_codes_geo.min.json`;
+
         const res = await fetch(url);
         const geo = await res.json();
 
@@ -93,8 +104,8 @@ export default function ZipMapScreen() {
             polygon.some(
               ([lng, lat]) =>
                 haversineDistance(
-                  currentLocation.latitude,
-                  currentLocation.longitude,
+                  locationCenter.latitude,
+                  locationCenter.longitude,
                   lat,
                   lng
                 ) <= customRadius
@@ -133,6 +144,14 @@ export default function ZipMapScreen() {
     const unsubscribe = onSnapshot(ref, (snap) => {
       if (snap.exists()) {
         const data = snap.data();
+
+        if (data.location?.latitude && data.location?.longitude) {
+          setInitialLocation({
+            latitude: data.location.latitude,
+            longitude: data.location.longitude,
+          });
+        }
+
         if (Array.isArray(data.zipCodes)) {
           setSavedZips(data.zipCodes);
         }
@@ -367,15 +386,38 @@ export default function ZipMapScreen() {
         >
           <MapboxGL.Camera
             centerCoordinate={
-              boundingRegion?.center ?? [
-                currentLocation.longitude,
-                currentLocation.latitude,
-              ]
+              boundingRegion?.center ??
+              (initialLocation
+                ? [initialLocation.longitude, initialLocation.latitude]
+                : currentLocation
+                ? [currentLocation.longitude, currentLocation.latitude]
+                : [-95.7129, 37.0902]) // fallback: центр США
             }
             zoomLevel={boundingRegion?.zoom ?? 10}
           />
 
           <MapboxGL.UserLocation />
+          {(initialLocation ?? currentLocation) && (
+            <MapboxGL.PointAnnotation
+              id="center-point"
+              coordinate={[
+                (initialLocation ?? currentLocation)!.longitude,
+                (initialLocation ?? currentLocation)!.latitude,
+              ]}
+            >
+              <View
+                style={{
+                  height: 20,
+                  width: 20,
+                  backgroundColor: "red",
+                  borderRadius: 10,
+                  borderColor: "white",
+                  borderWidth: 2,
+                }}
+              />
+            </MapboxGL.PointAnnotation>
+          )}
+
           <MapboxGL.ShapeSource
             id="zip-polygons"
             shape={
