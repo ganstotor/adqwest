@@ -6,7 +6,6 @@ import {
   Button,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
   ActivityIndicator,
   ScrollView,
 } from "react-native";
@@ -15,7 +14,6 @@ import { doc, setDoc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "../../../firebaseConfig";
 import MapView, { Polygon, Marker } from "react-native-maps";
 import Icon from "react-native-vector-icons/Ionicons";
-import * as Location from "expo-location";
 import stateAbbrMap from "../../../utils/stateAbbreviations";
 import { haversineDistance, getStateFromCoords, findNearbyStates } from "../../../utils/geo";
 
