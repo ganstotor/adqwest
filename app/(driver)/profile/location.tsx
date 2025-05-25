@@ -64,6 +64,7 @@ export default function ZipMapScreen() {
   const [currentState, setCurrentState] = useState<string | null>(null);
   const [radius, setRadius] = useState<number | null>(null);
   const [newRadius, setNewRadius] = useState<string>("");
+  const [userDataLoaded, setUserDataLoaded] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
 
   const boundingRegion = useMemo(() => getBoundingRegion(features), [features]);
@@ -138,55 +139,62 @@ export default function ZipMapScreen() {
     return unsubscribe;
   }, []);
 
-  useEffect(() => {
-    if (!user) return;
-    const ref = doc(db, "users_driver", user.uid);
-    const unsubscribe = onSnapshot(ref, (snap) => {
-      if (snap.exists()) {
+    useEffect(() => {
+      if (!user) return;
+      const ref = doc(db, "users_driver", user.uid);
+  
+      const unsubscribe = onSnapshot(ref, async (snap) => {
+        if (!snap.exists()) return;
+  
         const data = snap.data();
-
-        if (data.location?.latitude && data.location?.longitude) {
-          setInitialLocation({
-            latitude: data.location.latitude,
-            longitude: data.location.longitude,
+  
+        const newLat = data.location?.latitude;
+        const newLon = data.location?.longitude;
+        if (newLat && newLon) {
+          setInitialLocation((prev) => {
+            if (prev?.latitude === newLat && prev?.longitude === newLon) {
+              return prev; // не меняем состояние, если координаты те же
+            }
+            return { latitude: newLat, longitude: newLon };
           });
+  
+          const region = await getStateFromCoords(newLat, newLon);
+          setCurrentState(region || null);
         }
-
+  
         if (Array.isArray(data.zipCodes)) {
           setSavedZips(data.zipCodes);
         }
+  
         if (data.milesRadius) {
           setRadius(data.milesRadius);
           setNewRadius(String(data.milesRadius));
         }
-      }
-    });
-    return unsubscribe;
-  }, [user]);
+  
+        setUserDataLoaded(true);
+      });
+  
+      return unsubscribe;
+    }, [user]);
 
   useEffect(() => {
     const fetchLocation = async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== "granted") return;
       const location = await Location.getCurrentPositionAsync({});
-      const region = await getStateFromCoords(
-        location.coords.latitude,
-        location.coords.longitude
-      );
       setCurrentLocation({
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
       });
-      setCurrentState(region);
     };
     fetchLocation();
   }, []);
 
-  useEffect(() => {
-    if (currentLocation && currentState && radius != null) {
-      fetchGeoJSON();
-    }
-  }, [currentLocation, currentState, radius]);
+    useEffect(() => {
+      if (initialLocation && currentState && userDataLoaded) {
+        fetchGeoJSON();
+      }
+    }, [initialLocation, currentState, userDataLoaded]);
 
   const updateFirestoreZips = async (updated: ZipListItem[]) => {
     if (!user) return;

@@ -9,13 +9,18 @@ import {
   ActivityIndicator,
   ScrollView,
 } from "react-native";
+import * as Location from "expo-location";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { doc, setDoc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "../../../firebaseConfig";
 import MapView, { Polygon, Marker } from "react-native-maps";
 import Icon from "react-native-vector-icons/Ionicons";
 import stateAbbrMap from "../../../utils/stateAbbreviations";
-import { haversineDistance, getStateFromCoords, findNearbyStates } from "../../../utils/geo";
+import {
+  haversineDistance,
+  getStateFromCoords,
+  findNearbyStates,
+} from "../../../utils/geo";
 
 type GeoFeature = {
   type: string;
@@ -43,6 +48,11 @@ export default function ZipMapScreen() {
     latitude: number;
     longitude: number;
   } | null>(null);
+  const [initialLocation, setInitialLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+
   const [currentState, setCurrentState] = useState<string | null>(null);
   const [radius, setRadius] = useState<number | null>(null);
   const [newRadius, setNewRadius] = useState<string>("");
@@ -88,14 +98,17 @@ export default function ZipMapScreen() {
 
   const boundingRegion = useMemo(() => getBoundingRegion(), [features]);
 
+  // ✅ ЗАМЕНИ ФУНКЦИЮ fetchGeoJSON:
   const fetchGeoJSON = async (customRadiusParam?: number | null) => {
     const radiusToUse = customRadiusParam ?? radius;
-    if (!currentLocation || !radiusToUse) return;
+    const locationCenter = initialLocation;
+    if (!locationCenter || !radiusToUse) return;
+
     try {
       setLoading(true);
 
       const nearbyStates = await findNearbyStates(
-        currentLocation,
+        locationCenter,
         radiusToUse,
         currentState
       );
@@ -122,8 +135,8 @@ export default function ZipMapScreen() {
             polygon.some(
               ([lng, lat]) =>
                 haversineDistance(
-                  currentLocation.latitude,
-                  currentLocation.longitude,
+                  locationCenter.latitude,
+                  locationCenter.longitude,
                   lat,
                   lng
                 ) <= radiusToUse
@@ -166,17 +179,15 @@ export default function ZipMapScreen() {
 
       const data = snap.data();
 
-      // Проверка изменения координат
       const newLat = data.location?.latitude;
       const newLon = data.location?.longitude;
-      const locationChanged =
-        newLat !== undefined &&
-        newLon !== undefined &&
-        (newLat !== currentLocation?.latitude ||
-          newLon !== currentLocation?.longitude);
-
-      if (locationChanged) {
-        setCurrentLocation({ latitude: newLat, longitude: newLon });
+      if (newLat && newLon) {
+        setInitialLocation((prev) => {
+          if (prev?.latitude === newLat && prev?.longitude === newLon) {
+            return prev; // не меняем состояние, если координаты те же
+          }
+          return { latitude: newLat, longitude: newLon };
+        });
 
         const region = await getStateFromCoords(newLat, newLon);
         setCurrentState(region || null);
@@ -195,13 +206,27 @@ export default function ZipMapScreen() {
     });
 
     return unsubscribe;
-  }, [user, currentLocation]);
+  }, [user]);
 
   useEffect(() => {
-    if (currentLocation && currentState && userDataLoaded) {
-      fetchGeoJSON(); // теперь только когда radius точно загружен из базы
+    const fetchGPSLocation = async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") return;
+      const location = await Location.getCurrentPositionAsync({});
+      setCurrentLocation({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+    };
+
+    fetchGPSLocation();
+  }, []);
+
+  useEffect(() => {
+    if (initialLocation && currentState && userDataLoaded) {
+      fetchGeoJSON();
     }
-  }, [currentLocation, currentState, userDataLoaded]);
+  }, [initialLocation, currentState, userDataLoaded]);
 
   const updateFirestoreZips = async (updated: ZipListItem[]) => {
     if (user) {
@@ -431,11 +456,11 @@ export default function ZipMapScreen() {
             });
           })}
 
-          {currentLocation && (
+          {initialLocation && (
             <Marker
-              coordinate={currentLocation}
-              pinColor="red"
-              title="Текущее местоположение"
+              coordinate={initialLocation}
+              pinColor="green"
+              title="ZIP Radius Origin"
             />
           )}
         </MapView>
