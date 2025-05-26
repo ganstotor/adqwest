@@ -8,14 +8,35 @@ import {
   ActivityIndicator,
   ScrollView,
   Platform,
+  TextInput,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { auth, db } from "../../../firebaseConfig";
 import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import * as ImagePicker from 'expo-image-picker';
+import * as ImagePicker from "expo-image-picker";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "../../../firebaseConfig";
+import MapView, { Marker, Circle, PROVIDER_GOOGLE } from "react-native-maps";
+import * as Location from "expo-location";
+import { GeoPoint } from "firebase/firestore";
+import Icon from "react-native-vector-icons/Ionicons";
+
+type UserData = {
+  name: string;
+  avatar?: string;
+  rank?: string;
+  status: string;
+  selectedApps?: string[];
+  screenshots?: string[];
+  location?: GeoPoint;
+  milesRadius?: number;
+};
+
+type DeliveryApp = {
+  id: string;
+  name: string;
+};
 
 const ranks = [
   {
@@ -40,41 +61,64 @@ const ranks = [
   },
 ];
 
-const deliveryApps = [
-  { id: 'uber', name: 'Uber Eats' },
-  { id: 'doordash', name: 'DoorDash' },
-  { id: 'grubhub', name: 'GrubHub' },
-  { id: 'others', name: 'Others' },
+const deliveryApps: DeliveryApp[] = [
+  { id: "uber", name: "Uber Eats" },
+  { id: "doordash", name: "DoorDash" },
+  { id: "grubhub", name: "GrubHub" },
+  { id: "others", name: "Others" },
 ];
+
+const getRegionForRadius = (
+  latitude: number,
+  longitude: number,
+  radiusInMiles: number
+) => {
+  const radiusInDegrees = radiusInMiles / 69; // approximate miles per degree
+  return {
+    latitude,
+    longitude,
+    latitudeDelta: radiusInDegrees * 2.5, // multiply by 2.5 to add some padding
+    longitudeDelta: radiusInDegrees * 2.5,
+  };
+};
 
 const ProfileScreen = () => {
   const router = useRouter();
-  const [userData, setUserData] = useState<{
-    name: string;
-    avatar?: string;
-    rank?: string;
-    status: string;
-    selectedApps?: string[];
-    screenshots?: string[];
-    activationPopupShown?: boolean;
-  } | null>(null);
+  const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
-  const [showActivationModal, setShowActivationModal] = useState(false);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [verificationStep, setVerificationStep] = useState(1);
   const [selectedApps, setSelectedApps] = useState<string[]>([]);
   const [screenshots, setScreenshots] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [showLocationPopup, setShowLocationPopup] = useState(false);
+  const [savedLocation, setSavedLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [location, setLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [radius, setRadius] = useState<string>("");
+  const [initialRegion, setInitialRegion] = useState<{
+    latitude: number;
+    longitude: number;
+    latitudeDelta: number;
+    longitudeDelta: number;
+  } | null>(null);
+  const [canCloseModal, setCanCloseModal] = useState(false);
+  const [mapRef, setMapRef] = useState<MapView | null>(null);
 
   useEffect(() => {
-    if (userData?.status !== "active") {
-      setShowActivationModal(true);
+    if (userData?.status === "pending") {
+      setShowVerificationModal(true);
     } else {
-      setShowActivationModal(false);
-    }
-
-    if (userData?.activationPopupShown) {
-      setShowLocationPopup(true);
+      setShowVerificationModal(false);
     }
   }, [userData]);
 
@@ -105,10 +149,24 @@ const ProfileScreen = () => {
             status: data.status,
             selectedApps: data.selectedApps || [],
             screenshots: data.screenshots || [],
-            activationPopupShown: data.activationPopupShown,
+            location: data.location,
+            milesRadius: data.milesRadius,
           });
           setSelectedApps(data.selectedApps || []);
           setScreenshots(data.screenshots || []);
+          if (data.location) {
+            const locationData = {
+              latitude: data.location.latitude,
+              longitude: data.location.longitude,
+            };
+            setSavedLocation(locationData);
+            setLocation(locationData);
+          } else {
+            setSavedLocation(null);
+          }
+          if (data.milesRadius) {
+            setRadius(String(data.milesRadius));
+          }
         }
         setLoading(false);
       },
@@ -121,16 +179,68 @@ const ProfileScreen = () => {
     return () => unsubscribeSnapshot();
   }, [userId]);
 
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        alert(
+          "Sorry, we need location permissions to get your current location!"
+        );
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = location.coords;
+      setCurrentLocation({ latitude, longitude });
+      setInitialRegion({
+        latitude,
+        longitude,
+        latitudeDelta: 0.0922,
+        longitudeDelta: 0.0421,
+      });
+      if (!userData?.location) {
+        setLocation({ latitude, longitude });
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (
+      selectedApps.length > 0 &&
+      savedLocation &&
+      radius &&
+      screenshots.length > 0
+    ) {
+      setCanCloseModal(true);
+    } else {
+      setCanCloseModal(false);
+    }
+  }, [selectedApps, savedLocation, radius, screenshots]);
+
+  useEffect(() => {
+    if (mapRef && savedLocation && radius) {
+      const radiusInMiles = parseFloat(radius);
+      if (!isNaN(radiusInMiles)) {
+        const region = getRegionForRadius(
+          savedLocation.latitude,
+          savedLocation.longitude,
+          radiusInMiles
+        );
+        mapRef.animateToRegion(region, 1000);
+      }
+    }
+  }, [savedLocation, radius]);
+
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (status !== 'granted') {
-      alert('Sorry, we need camera roll permissions to upload screenshots!');
+
+    if (status !== "granted") {
+      alert("Sorry, we need camera roll permissions to upload screenshots!");
       return;
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
+      mediaTypes: ["images"],
       allowsEditing: false,
       quality: 1,
     });
@@ -144,18 +254,18 @@ const ProfileScreen = () => {
         const storageRef = ref(storage, filename);
         await uploadBytes(storageRef, blob);
         const downloadURL = await getDownloadURL(storageRef);
-        
+
         const newScreenshots = [...screenshots, downloadURL];
         setScreenshots(newScreenshots);
-        
+
         if (userId) {
           await updateDoc(doc(db, "users_driver", userId), {
-            screenshots: newScreenshots
+            screenshots: newScreenshots,
           });
         }
       } catch (error) {
-        console.error('Error uploading image:', error);
-        alert('Failed to upload image');
+        console.error("Error uploading image:", error);
+        alert("Failed to upload image");
       }
       setUploading(false);
     }
@@ -163,25 +273,60 @@ const ProfileScreen = () => {
 
   const toggleApp = async (appId: string) => {
     const newSelectedApps = selectedApps.includes(appId)
-      ? selectedApps.filter(id => id !== appId)
+      ? selectedApps.filter((id) => id !== appId)
       : [...selectedApps, appId];
-    
+
     setSelectedApps(newSelectedApps);
-    
+
     if (userId) {
       await updateDoc(doc(db, "users_driver", userId), {
-        selectedApps: newSelectedApps
+        selectedApps: newSelectedApps,
       });
     }
   };
 
-  const handleLocationPopupClose = async () => {
-    if (userId) {
+  const handleVerificationSubmit = async () => {
+    if (userId && location) {
       await updateDoc(doc(db, "users_driver", userId), {
-        activationPopupShown: false
+        location: new GeoPoint(location.latitude, location.longitude),
+        milesRadius: parseInt(radius),
       });
-      setShowLocationPopup(false);
-      router.push("/profile/location-google");
+      setShowVerificationModal(false);
+    }
+  };
+
+  const handleLocationSelect = (event: any) => {
+    const { latitude, longitude } = event.nativeEvent.coordinate;
+    setLocation({ latitude, longitude });
+
+    if (userId) {
+      const geoPoint = new GeoPoint(latitude, longitude);
+      updateDoc(doc(db, "users_driver", userId), {
+        location: geoPoint,
+      }).then(() => {
+        setSavedLocation({ latitude, longitude });
+      });
+    }
+  };
+
+  const handleRadiusChange = (text: string) => {
+    const num = parseInt(text);
+    if (isNaN(num)) {
+      setRadius("");
+    } else if (num <= 50) {
+      setRadius(String(num));
+      if (userId) {
+        updateDoc(doc(db, "users_driver", userId), {
+          milesRadius: num,
+        });
+      }
+    } else {
+      setRadius("50");
+      if (userId) {
+        updateDoc(doc(db, "users_driver", userId), {
+          milesRadius: 50,
+        });
+      }
     }
   };
 
@@ -197,92 +342,178 @@ const ProfileScreen = () => {
 
   return (
     <View style={styles.container}>
-      {showLocationPopup && (
+      {showVerificationModal && (
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Profile Activated!</Text>
-            <Text style={styles.modalText}>
-              Your profile has been successfully activated. To start using the app, please add your delivery location on the next screen.
-            </Text>
-            <TouchableOpacity 
-              style={styles.modalButton}
-              onPress={handleLocationPopupClose}
-            >
-              <Text style={styles.modalButtonText}>Continue to Location Setup</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
-      {showActivationModal && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            {userData.status === "active" ? (
-              <>
-                <Text style={styles.modalText}>
-                  Your profile is activated. You can start Qwest
-                </Text>
-                <TouchableOpacity 
-                  style={styles.modalButton}
-                  onPress={() => setShowActivationModal(false)}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                Verification - Step {verificationStep}
+              </Text>
+              {canCloseModal && (
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={() => setShowVerificationModal(false)}
                 >
-                  <Text style={styles.modalButtonText}>OK</Text>
+                  <Icon name="close" size={24} color="#000" />
                 </TouchableOpacity>
-              </>
-            ) : (
-              <>
-                <ScrollView style={styles.modalScroll}>
-                  <Text style={styles.modalTitle}>Activation Questions</Text>
-                  
-                  <Text style={styles.questionText}>1. What apps do you use?</Text>
-                  <View style={styles.appsContainer}>
-                    {deliveryApps.map((app) => (
-                      <TouchableOpacity
-                        key={app.id}
-                        style={[
-                          styles.appButton,
-                          selectedApps.includes(app.id) && styles.appButtonSelected
-                        ]}
-                        onPress={() => toggleApp(app.id)}
-                      >
-                        <Text style={[
-                          styles.appButtonText,
-                          selectedApps.includes(app.id) && styles.appButtonTextSelected
-                        ]}>
-                          {app.name}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+              )}
+            </View>
 
-                  <Text style={styles.questionText}>
-                    2. Please provide screenshots of your current activity with the chosen service
-                  </Text>
-                  <View style={styles.screenshotsContainer}>
-                    {screenshots.map((url, index) => (
-                      <Image
-                        key={index}
-                        source={{ uri: url }}
-                        style={styles.screenshot}
-                      />
-                    ))}
+            {verificationStep === 1 && (
+              <>
+                <Text style={styles.questionText}>
+                  Select delivery apps you use:
+                </Text>
+                <View style={styles.appsContainer}>
+                  {deliveryApps.map((app) => (
                     <TouchableOpacity
-                      style={styles.uploadButton}
-                      onPress={pickImage}
-                      disabled={uploading}
+                      key={app.id}
+                      style={[
+                        styles.appButton,
+                        selectedApps.includes(app.id) &&
+                          styles.appButtonSelected,
+                      ]}
+                      onPress={() => toggleApp(app.id)}
                     >
-                      <Text style={styles.uploadButtonText}>
-                        {uploading ? 'Uploading...' : '+ Add Screenshot'}
+                      <Text
+                        style={[
+                          styles.appButtonText,
+                          selectedApps.includes(app.id) &&
+                            styles.appButtonTextSelected,
+                        ]}
+                      >
+                        {app.name}
                       </Text>
                     </TouchableOpacity>
-                  </View>
+                  ))}
+                </View>
+                <TouchableOpacity
+                  style={[
+                    styles.modalButton,
+                    selectedApps.length === 0 && styles.modalButtonDisabled,
+                  ]}
+                  onPress={() => setVerificationStep(2)}
+                  disabled={selectedApps.length === 0}
+                >
+                  <Text style={styles.modalButtonText}>Next</Text>
+                </TouchableOpacity>
+              </>
+            )}
 
-                  {selectedApps.length > 0 && screenshots.length > 0 && (
-                    <Text style={styles.submitMessage}>
-                      Thank you for submitting! Please wait for our team to review it. Usually it is very quickly but sometimes can take up to 24 hours.
+            {verificationStep === 2 && (
+              <>
+                <Text style={styles.questionText}>
+                  Select your location and radius:
+                </Text>
+                <View style={styles.radiusContainer}>
+                  <Text>Delivery Radius (miles):</Text>
+                  <TextInput
+                    style={styles.radiusInput}
+                    value={radius}
+                    onChangeText={handleRadiusChange}
+                    keyboardType="numeric"
+                    placeholder="Enter radius (max 50)"
+                  />
+                </View>
+                <View style={styles.mapContainer}>
+                  <MapView
+                    ref={(ref) => setMapRef(ref)}
+                    provider={PROVIDER_GOOGLE}
+                    style={styles.map}
+                    initialRegion={
+                      initialRegion || {
+                        latitude: 37.78825,
+                        longitude: -122.4324,
+                        latitudeDelta: 0.0922,
+                        longitudeDelta: 0.0421,
+                      }
+                    }
+                    onPress={handleLocationSelect}
+                    showsUserLocation={true}
+                  >
+                    {savedLocation && (
+                      <>
+                        <Marker
+                          coordinate={{
+                            latitude: savedLocation.latitude,
+                            longitude: savedLocation.longitude,
+                          }}
+                          pinColor="red"
+                        />
+                        <Circle
+                          center={{
+                            latitude: savedLocation.latitude,
+                            longitude: savedLocation.longitude,
+                          }}
+                          radius={parseFloat(radius || "0") * 1609.34}
+                          strokeWidth={2}
+                          strokeColor="rgba(0, 122, 255, 1)"
+                          fillColor="rgba(0, 122, 255, 0.2)"
+                        />
+                      </>
+                    )}
+                  </MapView>
+                </View>
+                <View style={styles.buttonRow}>
+                  <TouchableOpacity
+                    style={styles.modalButton}
+                    onPress={() => setVerificationStep(1)}
+                  >
+                    <Text style={styles.modalButtonText}>Back</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.modalButton,
+                      (!savedLocation || !radius) && styles.modalButtonDisabled,
+                    ]}
+                    onPress={() => setVerificationStep(3)}
+                    disabled={!savedLocation || !radius}
+                  >
+                    <Text style={styles.modalButtonText}>Next</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+
+            {verificationStep === 3 && (
+              <>
+                <Text style={styles.questionText}>Upload screenshots:</Text>
+                <ScrollView style={styles.screenshotsContainer}>
+                  {screenshots.map((url, index) => (
+                    <Image
+                      key={index}
+                      source={{ uri: url }}
+                      style={styles.screenshot}
+                    />
+                  ))}
+                  <TouchableOpacity
+                    style={styles.uploadButton}
+                    onPress={pickImage}
+                    disabled={uploading}
+                  >
+                    <Text style={styles.uploadButtonText}>
+                      {uploading ? "Uploading..." : "+ Add Screenshot"}
                     </Text>
-                  )}
+                  </TouchableOpacity>
                 </ScrollView>
+                <View style={styles.buttonRow}>
+                  <TouchableOpacity
+                    style={styles.modalButton}
+                    onPress={() => setVerificationStep(2)}
+                  >
+                    <Text style={styles.modalButtonText}>Back</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.modalButton,
+                      screenshots.length === 0 && styles.modalButtonDisabled,
+                    ]}
+                    onPress={handleVerificationSubmit}
+                    disabled={screenshots.length === 0}
+                  >
+                    <Text style={styles.modalButtonText}>Submit</Text>
+                  </TouchableOpacity>
+                </View>
               </>
             )}
           </View>
@@ -307,6 +538,17 @@ const ProfileScreen = () => {
           <Text style={styles.rankText}>{userRank.name}</Text>
           <Image source={{ uri: userRank.image }} style={styles.rankIcon} />
         </View>
+      )}
+
+      {userData.status === "pending" && (
+        <TouchableOpacity
+          style={styles.verificationButton}
+          onPress={() => setShowVerificationModal(true)}
+        >
+          <Text style={styles.verificationButtonText}>
+            Verification Status: Pending
+          </Text>
+        </TouchableOpacity>
       )}
 
       <TouchableOpacity
@@ -428,125 +670,150 @@ const styles = StyleSheet.create({
     marginVertical: 5,
   },
   modalOverlay: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
     zIndex: 1000,
   },
   modalContent: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     padding: 20,
     borderRadius: 10,
-    width: '90%',
-    maxWidth: 400,
-    alignItems: 'center',
+    width: "90%",
+    maxHeight: "90%",
   },
-  modalScroll: {
-    maxHeight: '100%',
-    width: '100%',
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 15,
+    position: "relative",
+    width: "100%",
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 15,
-    textAlign: 'center',
+    fontWeight: "bold",
+    textAlign: "center",
   },
-  modalText: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 20,
-    lineHeight: 22,
-  },
-  modalButton: {
-    backgroundColor: '#007BFF',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    width: '100%',
-  },
-  modalButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
+  closeButton: {
+    position: "absolute",
+    right: 0,
+    padding: 5,
   },
   questionText: {
     fontSize: 18,
-    fontWeight: '600',
-    marginTop: 20,
-    marginBottom: 10,
-    textAlign: 'center',
-    width: '100%',
+    fontWeight: "600",
+    marginBottom: 20,
+    textAlign: "center",
   },
   appsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: 10,
+    justifyContent: "center",
     marginBottom: 20,
-    justifyContent: 'center',
-    width: '100%',
   },
   appButton: {
     padding: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#007bff',
-    backgroundColor: 'white',
+    borderColor: "#007bff",
+    backgroundColor: "white",
     minWidth: 120,
-    alignItems: 'center',
   },
   appButtonSelected: {
-    backgroundColor: '#007bff',
+    backgroundColor: "#007bff",
   },
   appButtonText: {
-    color: '#007bff',
+    color: "#007bff",
     fontSize: 16,
+    textAlign: "center",
   },
   appButtonTextSelected: {
-    color: 'white',
+    color: "white",
+  },
+  modalButton: {
+    backgroundColor: "#007bff",
+    padding: 12,
+    borderRadius: 8,
+    minWidth: 100,
+    alignItems: "center",
+  },
+  modalButtonDisabled: {
+    backgroundColor: "#ccc",
+  },
+  modalButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  buttonRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 20,
+  },
+  mapContainer: {
+    height: 300,
+    marginVertical: 20,
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  map: {
+    flex: 1,
+  },
+  radiusContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  radiusInput: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 4,
+    padding: 8,
+    marginLeft: 10,
+    width: 100,
   },
   screenshotsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 20,
-    justifyContent: 'center',
-    width: '100%',
+    flexGrow: 0,
+    height: 300,
   },
   screenshot: {
-    width: 100,
-    height: 100,
+    width: "100%",
+    height: 200,
     borderRadius: 8,
+    marginBottom: 10,
   },
   uploadButton: {
-    width: 100,
-    height: 100,
     borderWidth: 2,
-    borderColor: '#007bff',
-    borderStyle: 'dashed',
+    borderColor: "#007bff",
+    borderStyle: "dashed",
     borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
+    padding: 20,
+    alignItems: "center",
+    marginBottom: 10,
   },
   uploadButtonText: {
-    color: '#007bff',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  submitMessage: {
+    color: "#007bff",
     fontSize: 16,
-    color: '#28a745',
-    textAlign: 'center',
-    marginTop: 20,
-    padding: 10,
-    backgroundColor: '#e8f5e9',
+  },
+  verificationButton: {
+    backgroundColor: "#ffc107",
+    padding: 12,
     borderRadius: 8,
-    width: '100%',
+    marginVertical: 10,
+    width: "80%",
+  },
+  verificationButtonText: {
+    color: "#000",
+    fontSize: 16,
+    textAlign: "center",
+    fontWeight: "600",
   },
 });
 
