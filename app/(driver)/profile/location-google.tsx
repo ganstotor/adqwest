@@ -228,6 +228,41 @@ export default function ZipMapScreen() {
     }
   }, [initialLocation, currentState, userDataLoaded]);
 
+  // Добавляем новый useEffect для сохранения ZIP-кодов
+  useEffect(() => {
+    const saveZipCodes = async () => {
+      if (features.length > 0 && currentState && user) {
+        console.log("Features loaded, saving ZIP codes...");
+        const abbr = stateAbbrMap[currentState.trim()];
+        if (!abbr) return;
+
+        const stateCode = abbr.toUpperCase();
+        const allZips = features.map((f) => f.properties.ZCTA5CE10);
+        const uniqueZips = Array.from(new Set(allZips));
+
+        const updated = uniqueZips.map((zip) => ({
+          key: zip,
+          state: stateCode,
+        }));
+
+        console.log("Saving ZIP codes:", updated.length);
+        setSavedZips(updated);
+
+        const ref = doc(db, "users_driver", user.uid);
+        await setDoc(
+          ref,
+          {
+            zipCodes: updated,
+          },
+          { merge: true }
+        );
+        console.log("ZIP codes saved to Firestore");
+      }
+    };
+
+    saveZipCodes();
+  }, [features, currentState, user]);
+
   const updateFirestoreZips = async (updated: ZipListItem[]) => {
     if (user) {
       const ref = doc(db, "users_driver", user.uid);
@@ -282,6 +317,46 @@ export default function ZipMapScreen() {
 
     setSavedZips(updated);
     updateFirestoreZips(updated);
+  };
+
+  // Изменяем обработчик клика по карте
+  const handleMapPress = async (e: any) => {
+    if (initialLocation !== null) {
+      return;
+    }
+
+    const newLocation = e.nativeEvent.coordinate;
+    setInitialLocation(newLocation);
+
+    if (user) {
+      try {
+        console.log("Starting location update process...");
+        const ref = doc(db, "users_driver", user.uid);
+
+        // Сохраняем только новую локацию
+        await setDoc(
+          ref,
+          {
+            location: {
+              latitude: newLocation.latitude,
+              longitude: newLocation.longitude,
+            },
+          },
+          { merge: true }
+        );
+        console.log("Location saved to Firestore");
+
+        // Get state for new location
+        const region = await getStateFromCoords(
+          newLocation.latitude,
+          newLocation.longitude
+        );
+        console.log("Got region:", region);
+        setCurrentState(region || null);
+      } catch (error) {
+        console.error("Error in location update process:", error);
+      }
+    }
   };
 
   return (
@@ -365,38 +440,24 @@ export default function ZipMapScreen() {
       >
         <TouchableOpacity
           style={styles.smallButton}
-          onPress={() => {
-            if (!currentState) return;
-
-            const abbr = stateAbbrMap[currentState.trim()];
-            if (!abbr) return;
-
-            const stateCode = abbr.toUpperCase();
-            const allZips = features.map((f) => f.properties.ZCTA5CE10);
-            const uniqueZips = Array.from(
-              new Set([...savedZips.map((z) => z.key), ...allZips])
-            );
-
-            const updated = uniqueZips.map((zip) => ({
-              key: zip,
-              state: stateCode,
-            }));
-
-            setSavedZips(updated);
-            updateFirestoreZips(updated);
-          }}
-        >
-          <Text style={styles.smallButtonText}>Select All ZIPs</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.smallButton}
-          onPress={() => {
+          onPress={async () => {
             setSavedZips([]);
-            updateFirestoreZips([]);
+            setFeatures([]);
+            setInitialLocation(null);
+            if (user) {
+              const ref = doc(db, "users_driver", user.uid);
+              await setDoc(
+                ref,
+                {
+                  location: null,
+                  zipCodes: [],
+                },
+                { merge: true }
+              );
+            }
           }}
         >
-          <Text style={styles.smallButtonText}>Deselect All ZIPs</Text>
+          <Text style={styles.smallButtonText}>Clear</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.iconButton}
@@ -424,6 +485,7 @@ export default function ZipMapScreen() {
             }
           }
           showsUserLocation={true}
+          onPress={handleMapPress}
         >
           {features.map((feature) => {
             const { geometry, properties } = feature;
