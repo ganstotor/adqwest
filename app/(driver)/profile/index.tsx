@@ -21,6 +21,7 @@ import MapView, { Marker, Circle, PROVIDER_GOOGLE } from "react-native-maps";
 import * as Location from "expo-location";
 import { GeoPoint } from "firebase/firestore";
 import Icon from "react-native-vector-icons/Ionicons";
+import { getZipList } from "../../../utils/zipUtils";
 
 type UserData = {
   name: string;
@@ -287,10 +288,14 @@ const ProfileScreen = () => {
 
   const handleVerificationSubmit = async () => {
     if (userId && location) {
+      const zipCodes = await getZipList(location, parseInt(radius));
+  
       await updateDoc(doc(db, "users_driver", userId), {
         location: new GeoPoint(location.latitude, location.longitude),
         milesRadius: parseInt(radius),
+        zipCodes: zipCodes,
       });
+  
       setShowVerificationModal(false);
     }
   };
