@@ -184,13 +184,15 @@ export default function ZipMapScreen() {
       if (newLat && newLon) {
         setInitialLocation((prev) => {
           if (prev?.latitude === newLat && prev?.longitude === newLon) {
-            return prev; // не меняем состояние, если координаты те же
+            return prev;
           }
           return { latitude: newLat, longitude: newLon };
         });
 
         const region = await getStateFromCoords(newLat, newLon);
         setCurrentState(region || null);
+      } else {
+        setInitialLocation(null);
       }
 
       if (Array.isArray(data.zipCodes)) {
@@ -471,62 +473,64 @@ export default function ZipMapScreen() {
         </TouchableOpacity>
       </View>
 
-      {loading || !currentLocation ? (
-        <ActivityIndicator size="large" />
-      ) : (
-        <MapView
-          style={styles.map}
-          region={
-            boundingRegion ?? {
-              latitude: currentLocation.latitude,
-              longitude: currentLocation.longitude,
-              latitudeDelta: 0.2,
-              longitudeDelta: 0.2,
-            }
+      <MapView
+        style={styles.map}
+        region={
+          boundingRegion ?? {
+            latitude:
+              initialLocation?.latitude ??
+              currentLocation?.latitude ??
+              37.78825,
+            longitude:
+              initialLocation?.longitude ??
+              currentLocation?.longitude ??
+              -122.4324,
+            latitudeDelta: 0.2,
+            longitudeDelta: 0.2,
           }
-          showsUserLocation={true}
-          onPress={handleMapPress}
-        >
-          {features.map((feature) => {
-            const { geometry, properties } = feature;
-            const zipCode = properties.ZCTA5CE10;
-            const isSelected = savedZips.some((z) => z.key === zipCode);
-            let polygons =
-              geometry.type === "Polygon"
-                ? (geometry.coordinates as number[][][])
-                : (geometry.coordinates as number[][][][]).flat();
+        }
+        showsUserLocation={true}
+        onPress={handleMapPress}
+      >
+        {features.map((feature) => {
+          const { geometry, properties } = feature;
+          const zipCode = properties.ZCTA5CE10;
+          const isSelected = savedZips.some((z) => z.key === zipCode);
+          let polygons =
+            geometry.type === "Polygon"
+              ? (geometry.coordinates as number[][][])
+              : (geometry.coordinates as number[][][][]).flat();
 
-            return polygons.map((polygon, i) => {
-              const coords = polygon.map(([lng, lat]) => ({
-                latitude: lat,
-                longitude: lng,
-              }));
+          return polygons.map((polygon, i) => {
+            const coords = polygon.map(([lng, lat]) => ({
+              latitude: lat,
+              longitude: lng,
+            }));
 
-              return (
-                <Polygon
-                  key={`${zipCode}-${i}`}
-                  coordinates={coords}
-                  strokeColor="#000"
-                  fillColor={
-                    isSelected ? "rgba(0,200,0,0.4)" : "rgba(0,150,255,0.3)"
-                  }
-                  strokeWidth={1}
-                  tappable
-                  onPress={() => toggleZipFromMap(zipCode)}
-                />
-              );
-            });
-          })}
+            return (
+              <Polygon
+                key={`${zipCode}-${i}`}
+                coordinates={coords}
+                strokeColor="#000"
+                fillColor={
+                  isSelected ? "rgba(0,200,0,0.4)" : "rgba(0,150,255,0.3)"
+                }
+                strokeWidth={1}
+                tappable
+                onPress={() => toggleZipFromMap(zipCode)}
+              />
+            );
+          });
+        })}
 
-          {initialLocation && (
-            <Marker
-              coordinate={initialLocation}
-              pinColor="green"
-              title="ZIP Radius Origin"
-            />
-          )}
-        </MapView>
-      )}
+        {initialLocation && (
+          <Marker
+            coordinate={initialLocation}
+            pinColor="green"
+            title="ZIP Radius Origin"
+          />
+        )}
+      </MapView>
     </View>
   );
 }
