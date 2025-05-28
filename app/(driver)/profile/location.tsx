@@ -8,6 +8,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
+  Alert,
 } from "react-native";
 import MapboxGL from "@rnmapbox/maps";
 import { onAuthStateChanged, User } from "firebase/auth";
@@ -303,6 +304,49 @@ export default function ZipMapScreen() {
     })),
   });
 
+  const handleMapPress = async (e: any) => {
+    if (initialLocation !== null) {
+      return;
+    }
+
+    const coordinates = e.geometry.coordinates;
+    if (!coordinates) {
+      return;
+    }
+
+    const [longitude, latitude] = coordinates;
+    const newLocation = {
+      latitude,
+      longitude,
+    };
+
+    setInitialLocation(newLocation);
+
+    if (user) {
+      try {
+        const ref = doc(db, "users_driver", user.uid);
+
+        const locationData = {
+          location: {
+            latitude: newLocation.latitude,
+            longitude: newLocation.longitude,
+          },
+        };
+
+        await setDoc(ref, locationData, { merge: true });
+
+        const region = await getStateFromCoords(
+          newLocation.latitude,
+          newLocation.longitude
+        );
+
+        setCurrentState(region || null);
+      } catch (error) {
+        Alert.alert("Error", "Failed to save location. Please try again.");
+      }
+    }
+  };
+
   return (
     <View style={styles.container}>
       {showPopup && (
@@ -418,39 +462,8 @@ export default function ZipMapScreen() {
       <MapboxGL.MapView
         style={styles.map}
         styleURL={MapboxGL.StyleURL.Street}
-        onPress={(event: any) => {
-          const { coordinates } = event;
-          if (!coordinates) return;
-
-          const [longitude, latitude] = coordinates;
-
-          const newLocation = {
-            latitude,
-            longitude,
-          };
-
-          setInitialLocation(newLocation);
-
-          if (user) {
-            const ref = doc(db, "users_driver", user.uid);
-            setDoc(
-              ref,
-              {
-                location: {
-                  latitude: newLocation.latitude,
-                  longitude: newLocation.longitude,
-                },
-              },
-              { merge: true }
-            ).then(async () => {
-              const region = await getStateFromCoords(
-                newLocation.latitude,
-                newLocation.longitude
-              );
-              setCurrentState(region || null);
-            });
-          }
-        }}
+        onPress={handleMapPress}
+        onTouchEnd={handleMapPress}
       >
         <MapboxGL.Camera
           centerCoordinate={
