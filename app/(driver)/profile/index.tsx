@@ -29,6 +29,7 @@ type UserData = {
   rank?: string;
   status: string;
   selectedApps?: string[];
+  otherAppName?: string;
   screenshots?: string[];
   location?: GeoPoint;
   milesRadius?: number;
@@ -63,11 +64,17 @@ const ranks = [
 ];
 
 const deliveryApps: DeliveryApp[] = [
+  {
+    id: "no_delivery",
+    name: "I do not currently deliver for other delivery services",
+  },
   { id: "uber", name: "Uber Eats" },
   { id: "doordash", name: "DoorDash" },
   { id: "grubhub", name: "GrubHub" },
   { id: "others", name: "Others" },
 ];
+
+const totalSteps = 4;
 
 const getRegionForRadius = (
   latitude: number,
@@ -83,6 +90,40 @@ const getRegionForRadius = (
   };
 };
 
+const ProgressBar = ({
+  currentStep,
+  totalSteps,
+}: {
+  currentStep: number;
+  totalSteps: number;
+}) => {
+  return (
+    <View style={styles.progressContainer}>
+      {Array.from({ length: totalSteps }).map((_, index) => (
+        <React.Fragment key={index}>
+          <View
+            style={[
+              styles.progressStep,
+              index + 1 === currentStep && styles.progressStepActive,
+              index + 1 < currentStep && styles.progressStepCompleted,
+            ]}
+          >
+            <Text style={styles.progressText}>{index + 1}</Text>
+          </View>
+          {index < totalSteps - 1 && (
+            <View
+              style={[
+                styles.progressLine,
+                index + 1 < currentStep && styles.progressLineActive,
+              ]}
+            />
+          )}
+        </React.Fragment>
+      ))}
+    </View>
+  );
+};
+
 const ProfileScreen = () => {
   const router = useRouter();
   const [userData, setUserData] = useState<UserData | null>(null);
@@ -91,8 +132,10 @@ const ProfileScreen = () => {
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [verificationStep, setVerificationStep] = useState(1);
   const [selectedApps, setSelectedApps] = useState<string[]>([]);
+  const [otherAppName, setOtherAppName] = useState("");
   const [screenshots, setScreenshots] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [termsAgreed, setTermsAgreed] = useState(false);
   const [savedLocation, setSavedLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -149,11 +192,13 @@ const ProfileScreen = () => {
             rank: data.rank,
             status: data.status,
             selectedApps: data.selectedApps || [],
+            otherAppName: data.otherAppName || "",
             screenshots: data.screenshots || [],
             location: data.location,
             milesRadius: data.milesRadius,
           });
           setSelectedApps(data.selectedApps || []);
+          setOtherAppName(data.otherAppName || "");
           setScreenshots(data.screenshots || []);
           if (data.location) {
             const locationData = {
@@ -279,9 +324,16 @@ const ProfileScreen = () => {
 
     setSelectedApps(newSelectedApps);
 
+    if (!newSelectedApps.includes("others")) {
+      setOtherAppName("");
+    }
+
     if (userId) {
       await updateDoc(doc(db, "users_driver", userId), {
         selectedApps: newSelectedApps,
+        ...(newSelectedApps.includes("others")
+          ? { otherAppName }
+          : { otherAppName: "" }),
       });
     }
   };
@@ -289,13 +341,13 @@ const ProfileScreen = () => {
   const handleVerificationSubmit = async () => {
     if (userId && location) {
       const zipCodes = await getZipList(location, parseInt(radius));
-  
+
       await updateDoc(doc(db, "users_driver", userId), {
         location: new GeoPoint(location.latitude, location.longitude),
         milesRadius: parseInt(radius),
         zipCodes: zipCodes,
       });
-  
+
       setShowVerificationModal(false);
     }
   };
@@ -364,6 +416,11 @@ const ProfileScreen = () => {
               )}
             </View>
 
+            <ProgressBar
+              currentStep={verificationStep}
+              totalSteps={totalSteps}
+            />
+
             {verificationStep === 1 && (
               <>
                 <Text style={styles.questionText}>
@@ -392,16 +449,43 @@ const ProfileScreen = () => {
                     </TouchableOpacity>
                   ))}
                 </View>
-                <TouchableOpacity
-                  style={[
-                    styles.modalButton,
-                    selectedApps.length === 0 && styles.modalButtonDisabled,
-                  ]}
-                  onPress={() => setVerificationStep(2)}
-                  disabled={selectedApps.length === 0}
-                >
-                  <Text style={styles.modalButtonText}>Next</Text>
-                </TouchableOpacity>
+                {selectedApps.includes("others") && (
+                  <TextInput
+                    style={styles.otherAppInput}
+                    placeholder="Enter other delivery app name"
+                    value={otherAppName}
+                    onChangeText={(text) => {
+                      setOtherAppName(text);
+                      if (userId) {
+                        updateDoc(doc(db, "users_driver", userId), {
+                          otherAppName: text,
+                        });
+                      }
+                    }}
+                  />
+                )}
+                {selectedApps.includes("no_delivery") ? (
+                  <Text style={styles.errorText}>
+                    You cannot use this application
+                  </Text>
+                ) : (
+                  <TouchableOpacity
+                    style={[
+                      styles.modalButton,
+                      (selectedApps.length === 0 ||
+                        (selectedApps.includes("others") && !otherAppName)) &&
+                        styles.modalButtonDisabled,
+                    ]}
+                    onPress={() => setVerificationStep(2)}
+                    disabled={
+                      selectedApps.length === 0 ||
+                      (selectedApps.includes("others") && !otherAppName) ||
+                      selectedApps.includes("no_delivery")
+                    }
+                  >
+                    <Text style={styles.modalButtonText}>Next</Text>
+                  </TouchableOpacity>
+                )}
               </>
             )}
 
@@ -483,13 +567,31 @@ const ProfileScreen = () => {
             {verificationStep === 3 && (
               <>
                 <Text style={styles.questionText}>Upload screenshots:</Text>
+                <Text style={styles.termsText}>
+                  The screenshot must show your name matching your account and
+                  delivery statistics for the last 30 days
+                </Text>
                 <ScrollView style={styles.screenshotsContainer}>
                   {screenshots.map((url, index) => (
-                    <Image
-                      key={index}
-                      source={{ uri: url }}
-                      style={styles.screenshot}
-                    />
+                    <View key={index} style={styles.screenshotContainer}>
+                      <Image source={{ uri: url }} style={styles.screenshot} />
+                      <TouchableOpacity
+                        style={styles.deleteButton}
+                        onPress={() => {
+                          const newScreenshots = screenshots.filter(
+                            (_, i) => i !== index
+                          );
+                          setScreenshots(newScreenshots);
+                          if (userId) {
+                            updateDoc(doc(db, "users_driver", userId), {
+                              screenshots: newScreenshots,
+                            });
+                          }
+                        }}
+                      >
+                        <Text style={styles.deleteButtonText}>×</Text>
+                      </TouchableOpacity>
+                    </View>
                   ))}
                   <TouchableOpacity
                     style={styles.uploadButton}
@@ -513,8 +615,69 @@ const ProfileScreen = () => {
                       styles.modalButton,
                       screenshots.length === 0 && styles.modalButtonDisabled,
                     ]}
-                    onPress={handleVerificationSubmit}
+                    onPress={() => setVerificationStep(4)}
                     disabled={screenshots.length === 0}
+                  >
+                    <Text style={styles.modalButtonText}>Next</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+
+            {verificationStep === 4 && (
+              <>
+                <Text style={styles.questionText}>Terms and Agreement</Text>
+                <ScrollView style={styles.termsContainer}>
+                  <Text style={styles.termsText}>
+                    By accepting these terms, you agree to:
+                    {"\n\n"}
+                    1. Provide accurate and truthful information about your
+                    delivery experience
+                    {"\n\n"}
+                    2. Maintain professional conduct while using our platform
+                    {"\n\n"}
+                    3. Follow all local regulations and guidelines for delivery
+                    services
+                    {"\n\n"}
+                    4. Keep your account information up to date
+                    {"\n\n"}
+                    5. Respect the privacy and confidentiality of customer
+                    information
+                    {"\n\n"}
+                    6. Comply with our platform's policies and procedures
+                    {"\n\n"}
+                    7. Understand that violation of these terms may result in
+                    account suspension
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.checkboxContainer}
+                    onPress={() => setTermsAgreed(!termsAgreed)}
+                  >
+                    <View
+                      style={[
+                        styles.checkbox,
+                        termsAgreed && styles.checkboxChecked,
+                      ]}
+                    >
+                      {termsAgreed && <Text style={styles.checkmark}>✓</Text>}
+                    </View>
+                    <Text>I agree to the terms and conditions</Text>
+                  </TouchableOpacity>
+                </ScrollView>
+                <View style={styles.buttonRow}>
+                  <TouchableOpacity
+                    style={styles.modalButton}
+                    onPress={() => setVerificationStep(3)}
+                  >
+                    <Text style={styles.modalButtonText}>Back</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.modalButton,
+                      !termsAgreed && styles.modalButtonDisabled,
+                    ]}
+                    onPress={handleVerificationSubmit}
+                    disabled={!termsAgreed}
                   >
                     <Text style={styles.modalButtonText}>Submit</Text>
                   </TouchableOpacity>
@@ -819,6 +982,108 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: "center",
     fontWeight: "600",
+  },
+  progressContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+    marginBottom: 20,
+    padding: 10,
+  },
+  progressStep: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#ccc",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  progressStepActive: {
+    backgroundColor: "#007bff",
+  },
+  progressStepCompleted: {
+    backgroundColor: "#28a745",
+  },
+  progressLine: {
+    height: 2,
+    backgroundColor: "#ccc",
+    flex: 1,
+    alignSelf: "center",
+    marginHorizontal: 5,
+  },
+  progressLineActive: {
+    backgroundColor: "#007bff",
+  },
+  progressText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "bold",
+  },
+  deleteButton: {
+    position: "absolute",
+    top: 5,
+    right: 5,
+    backgroundColor: "rgba(255, 0, 0, 0.7)",
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  deleteButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  screenshotContainer: {
+    position: "relative",
+    marginBottom: 10,
+  },
+  otherAppInput: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 10,
+    marginBottom: 20,
+    width: "100%",
+  },
+  termsContainer: {
+    marginVertical: 20,
+  },
+  termsText: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 10,
+    lineHeight: 20,
+  },
+  checkboxContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 1,
+    borderColor: "#007bff",
+    marginRight: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  checkboxChecked: {
+    backgroundColor: "#007bff",
+  },
+  checkmark: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "bold",
+  },
+  errorText: {
+    color: "#dc3545",
+    fontSize: 14,
+    marginTop: 5,
+    textAlign: "center",
   },
 });
 
