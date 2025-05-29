@@ -17,14 +17,19 @@ import {
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
+import { formatPhoneNumber } from "../utils/formatPhoneNumber";
+import { getDocs, query, collection, where } from "firebase/firestore";
 
 WebBrowser.maybeCompleteAuthSession();
 
 export default function AuthScreen() {
   const [mode, setMode] = useState<"login" | "signup">("signup");
   const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [usernameError, setUsernameError] = useState("");
   const router = useRouter();
 
   // Google Auth request
@@ -48,9 +53,47 @@ export default function AuthScreen() {
     }
   }, [response]);
 
+  const validateUsername = async (username: string) => {
+    if (!username) {
+      setUsernameError("Username is required");
+      return false;
+    }
+
+    // Проверяем, что username содержит только допустимые символы
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      setUsernameError(
+        "Username can only contain letters, numbers and underscore"
+      );
+      return false;
+    }
+
+    // Проверяем, что username уникален
+    const usersSnapshot = await getDocs(
+      query(collection(db, "users_driver"), where("username", "==", username))
+    );
+
+    if (!usersSnapshot.empty) {
+      setUsernameError("This username is already taken");
+      return false;
+    }
+
+    setUsernameError("");
+    return true;
+  };
+
   const handleAuth = async () => {
     try {
       if (mode === "signup") {
+        if (!username || !phone) {
+          alert("Username and phone are required");
+          return;
+        }
+
+        const isUsernameValid = await validateUsername(username);
+        if (!isUsernameValid) {
+          return;
+        }
+
         const userCredential = await createUserWithEmailAndPassword(
           auth,
           email,
@@ -62,6 +105,8 @@ export default function AuthScreen() {
         await setDoc(userDocRef, {
           email: user.email,
           name: name,
+          username: username,
+          phone: phone,
           rank: "Recruit",
           completedMissionsCount: 0,
           uncompletedMissionsCount: 0,
@@ -71,7 +116,6 @@ export default function AuthScreen() {
           activationPopupShown: false,
         });
 
-        // После регистрации отправляем на профиль
         router.push("/(driver)/profile");
       } else {
         const userCredential = await signInWithEmailAndPassword(
@@ -122,13 +166,42 @@ export default function AuthScreen() {
       </Text>
 
       {mode === "signup" && (
-        <TextInput
-          placeholder="Full Name"
-          value={name}
-          onChangeText={setName}
-          style={styles.input}
-        />
+        <>
+          <TextInput
+            placeholder="Full Name"
+            value={name}
+            onChangeText={setName}
+            style={styles.input}
+          />
+          <View style={styles.inputContainer}>
+            <TextInput
+              placeholder="Username (required)"
+              value={username}
+              onChangeText={(text) => {
+                setUsername(text);
+                validateUsername(text);
+              }}
+              style={[styles.input, usernameError ? styles.inputError : null]}
+            />
+            {usernameError ? (
+              <Text style={styles.errorText}>{usernameError}</Text>
+            ) : null}
+          </View>
+          <TextInput
+            placeholder="Phone (required)"
+            value={phone}
+            onChangeText={(text) => {
+              const formatted = formatPhoneNumber(text);
+              if (formatted !== null) {
+                setPhone(formatted);
+              }
+            }}
+            keyboardType="phone-pad"
+            style={styles.input}
+          />
+        </>
       )}
+
       <TextInput
         placeholder="Email"
         value={email}
@@ -250,5 +323,16 @@ const styles = StyleSheet.create({
   dividerText: {
     marginHorizontal: 10,
     color: "#777",
+  },
+  inputContainer: {
+    width: "100%",
+  },
+  inputError: {
+    borderColor: "#dc3545",
+  },
+  errorText: {
+    color: "#dc3545",
+    fontSize: 12,
+    marginTop: 5,
   },
 });
