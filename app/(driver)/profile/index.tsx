@@ -74,7 +74,7 @@ const deliveryApps: DeliveryApp[] = [
   { id: "others", name: "Others" },
 ];
 
-const totalSteps = 4;
+const totalSteps = 3;
 
 const getRegionForRadius = (
   latitude: number,
@@ -615,69 +615,8 @@ const ProfileScreen = () => {
                       styles.modalButton,
                       screenshots.length === 0 && styles.modalButtonDisabled,
                     ]}
-                    onPress={() => setVerificationStep(4)}
-                    disabled={screenshots.length === 0}
-                  >
-                    <Text style={styles.modalButtonText}>Next</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-
-            {verificationStep === 4 && (
-              <>
-                <Text style={styles.questionText}>Terms and Agreement</Text>
-                <ScrollView style={styles.termsContainer}>
-                  <Text style={styles.termsText}>
-                    By accepting these terms, you agree to:
-                    {"\n\n"}
-                    1. Provide accurate and truthful information about your
-                    delivery experience
-                    {"\n\n"}
-                    2. Maintain professional conduct while using our platform
-                    {"\n\n"}
-                    3. Follow all local regulations and guidelines for delivery
-                    services
-                    {"\n\n"}
-                    4. Keep your account information up to date
-                    {"\n\n"}
-                    5. Respect the privacy and confidentiality of customer
-                    information
-                    {"\n\n"}
-                    6. Comply with our platform's policies and procedures
-                    {"\n\n"}
-                    7. Understand that violation of these terms may result in
-                    account suspension
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.checkboxContainer}
-                    onPress={() => setTermsAgreed(!termsAgreed)}
-                  >
-                    <View
-                      style={[
-                        styles.checkbox,
-                        termsAgreed && styles.checkboxChecked,
-                      ]}
-                    >
-                      {termsAgreed && <Text style={styles.checkmark}>✓</Text>}
-                    </View>
-                    <Text>I agree to the terms and conditions</Text>
-                  </TouchableOpacity>
-                </ScrollView>
-                <View style={styles.buttonRow}>
-                  <TouchableOpacity
-                    style={styles.modalButton}
-                    onPress={() => setVerificationStep(3)}
-                  >
-                    <Text style={styles.modalButtonText}>Back</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.modalButton,
-                      !termsAgreed && styles.modalButtonDisabled,
-                    ]}
                     onPress={handleVerificationSubmit}
-                    disabled={!termsAgreed}
+                    disabled={screenshots.length === 0}
                   >
                     <Text style={styles.modalButtonText}>Submit</Text>
                   </TouchableOpacity>

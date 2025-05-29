@@ -5,6 +5,8 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
+  Modal,
+  ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { auth, db } from "../firebaseConfig";
@@ -25,6 +27,8 @@ export default function AuthScreen() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [termsAgreed, setTermsAgreed] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
   const router = useRouter();
 
   // Google Auth request
@@ -51,6 +55,10 @@ export default function AuthScreen() {
   const handleAuth = async () => {
     try {
       if (mode === "signup") {
+        if (!termsAgreed) {
+          alert("Please agree to the Terms and Conditions to continue");
+          return;
+        }
         const userCredential = await createUserWithEmailAndPassword(
           auth,
           email,
@@ -144,6 +152,25 @@ export default function AuthScreen() {
         style={styles.input}
       />
 
+      {mode === "signup" && (
+        <View style={styles.termsContainer}>
+          <TouchableOpacity
+            style={styles.checkboxContainer}
+            onPress={() => setTermsAgreed(!termsAgreed)}
+          >
+            <View
+              style={[styles.checkbox, termsAgreed && styles.checkboxChecked]}
+            >
+              {termsAgreed && <Text style={styles.checkmark}>✓</Text>}
+            </View>
+            <Text style={styles.termsText}>I agree to the </Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setShowTermsModal(true)}>
+            <Text style={styles.termsLink}>Terms and Conditions</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <TouchableOpacity style={styles.authButton} onPress={handleAuth}>
         <Text style={styles.buttonText}>
           {mode === "signup" ? "Create Account" : "Login"}
@@ -184,6 +211,59 @@ export default function AuthScreen() {
       >
         <Text style={styles.buttonText}>Sign In with Google</Text>
       </TouchableOpacity>
+
+      <Modal
+        visible={showTermsModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowTermsModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Terms and Agreement</Text>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setShowTermsModal(false)}
+              >
+                <Text style={styles.closeButtonText}>×</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalBody}>
+              <Text style={styles.modalText}>
+                By accepting these terms, you agree to:
+                {"\n\n"}
+                1. Provide accurate and truthful information about your delivery
+                experience
+                {"\n\n"}
+                2. Maintain professional conduct while using our platform
+                {"\n\n"}
+                3. Follow all local regulations and guidelines for delivery
+                services
+                {"\n\n"}
+                4. Keep your account information up to date
+                {"\n\n"}
+                5. Respect the privacy and confidentiality of customer
+                information
+                {"\n\n"}
+                6. Comply with our platform's policies and procedures
+                {"\n\n"}
+                7. Understand that violation of these terms may result in
+                account suspension
+              </Text>
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => {
+                setTermsAgreed(true);
+                setShowTermsModal(false);
+              }}
+            >
+              <Text style={styles.modalButtonText}>I Agree</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -250,5 +330,91 @@ const styles = StyleSheet.create({
   dividerText: {
     marginHorizontal: 10,
     color: "#777",
+  },
+  termsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 10,
+    flexWrap: "wrap",
+  },
+  checkboxContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 1,
+    borderColor: "#007bff",
+    marginRight: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  checkboxChecked: {
+    backgroundColor: "#007bff",
+  },
+  checkmark: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "bold",
+  },
+  termsText: {
+    fontSize: 14,
+    color: "#333",
+  },
+  termsLink: {
+    fontSize: 14,
+    color: "#007bff",
+    textDecorationLine: "underline",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    backgroundColor: "white",
+    borderRadius: 10,
+    padding: 20,
+    width: "90%",
+    maxHeight: "80%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+  closeButton: {
+    padding: 5,
+  },
+  closeButtonText: {
+    fontSize: 24,
+    color: "#666",
+  },
+  modalBody: {
+    maxHeight: "80%",
+  },
+  modalText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#333",
+  },
+  modalButton: {
+    backgroundColor: "#007bff",
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 15,
+  },
+  modalButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
