@@ -17,18 +17,30 @@ import {
   EmailAuthProvider,
   reauthenticateWithCredential,
 } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  collection,
+  getDocs,
+  query,
+  where,
+} from "firebase/firestore";
 import * as ImagePicker from "expo-image-picker";
 import { db, storage } from "../../../firebaseConfig";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { formatPhoneNumber } from "../../../utils/formatPhoneNumber";
 
 const SettingsScreen = () => {
   const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [phone, setPhone] = useState("");
   const [avatar, setAvatar] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [usernameError, setUsernameError] = useState("");
 
   useEffect(() => {
     const auth = getAuth();
@@ -40,6 +52,8 @@ const SettingsScreen = () => {
         if (docSnap.exists()) {
           const data = docSnap.data();
           if (data.name) setName(data.name);
+          if (data.username) setUsername(data.username);
+          if (data.phone) setPhone(data.phone);
           if (data.avatar) setAvatar(data.avatar);
         }
       }
@@ -94,11 +108,52 @@ const SettingsScreen = () => {
     }
   };
 
-  const saveSettings = async () => {
+  const validateUsername = async (username: string, currentUserId: string) => {
+    if (!username) {
+      setUsernameError("Username is required");
+      return false;
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      setUsernameError(
+        "Username can only contain letters, numbers and underscore"
+      );
+      return false;
+    }
+
+    const usersSnapshot = await getDocs(
+      query(collection(db, "users_driver"), where("username", "==", username))
+    );
+
+    // Проверяем, что найденный username не принадлежит текущему пользователю
+    if (!usersSnapshot.empty && usersSnapshot.docs[0].id !== currentUserId) {
+      setUsernameError("This username is already taken");
+      return false;
+    }
+
+    setUsernameError("");
+    return true;
+  };
+
+  const handleSave = async () => {
     if (userId) {
-      const ref = doc(db, "users_driver", userId);
-      await setDoc(ref, { name }, { merge: true });
-      Alert.alert("Saved", "Settings updated successfully");
+      const isUsernameValid = await validateUsername(username, userId);
+      if (!isUsernameValid) {
+        return;
+      }
+
+      const docRef = doc(db, "users_driver", userId);
+      await setDoc(
+        docRef,
+        {
+          name,
+          username,
+          phone,
+          avatar: avatar || null,
+        },
+        { merge: true }
+      );
+      alert("Profile updated successfully!");
     }
   };
 
@@ -136,72 +191,102 @@ const SettingsScreen = () => {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.scrollContainer}>
-      <View style={styles.container}>
-        <Text style={styles.title}>Settings</Text>
+    <ScrollView style={styles.scrollContainer}>
+      <Text style={styles.title}>Settings</Text>
 
-        <TouchableOpacity onPress={pickImage}>
-          <View style={styles.avatarWrapper}>
-            {avatar ? (
-              <Image source={{ uri: avatar }} style={styles.avatar} />
-            ) : (
-              <View style={styles.placeholder}>
-                <Text style={styles.placeholderText}>Avatar</Text>
-              </View>
-            )}
+      <View style={styles.avatarWrapper}>
+        {avatar ? (
+          <Image source={{ uri: avatar }} style={styles.avatar} />
+        ) : (
+          <View style={styles.placeholder}>
+            <Text style={styles.placeholderText}>Avatar</Text>
           </View>
+        )}
+      </View>
+
+      <TouchableOpacity onPress={pickImage}>
+        <Text
+          style={{ textAlign: "center", color: "#007bff", marginBottom: 20 }}
+        >
+          Change Avatar
+        </Text>
+      </TouchableOpacity>
+
+      <View style={styles.inputContainer}>
+        <Text style={styles.label}>Full Name</Text>
+        <TextInput
+          value={name}
+          onChangeText={setName}
+          style={styles.input}
+          placeholder="Enter your full name"
+        />
+      </View>
+
+      <View style={styles.inputContainer}>
+        <Text style={styles.label}>Username</Text>
+        <TextInput
+          value={username}
+          onChangeText={(text) => {
+            setUsername(text);
+            if (userId) validateUsername(text, userId);
+          }}
+          style={[styles.input, usernameError ? styles.inputError : null]}
+          placeholder="Enter your username"
+        />
+        {usernameError ? (
+          <Text style={styles.errorText}>{usernameError}</Text>
+        ) : null}
+      </View>
+
+      <View style={styles.inputContainer}>
+        <Text style={styles.label}>Phone</Text>
+        <TextInput
+          value={phone}
+          onChangeText={(text) => {
+            const formatted = formatPhoneNumber(text);
+            if (formatted !== null) {
+              setPhone(formatted);
+            }
+          }}
+          style={styles.input}
+          placeholder="Enter your phone number"
+          keyboardType="phone-pad"
+        />
+      </View>
+
+      <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+        <Text style={styles.saveButtonText}>Save Changes</Text>
+      </TouchableOpacity>
+
+      <View style={styles.passwordChangeContainer}>
+        <Text style={styles.passwordChangeTitle}>Change Password</Text>
+        <TextInput
+          placeholder="Current Password"
+          value={oldPassword}
+          onChangeText={setOldPassword}
+          secureTextEntry
+          style={styles.input}
+        />
+        <TextInput
+          placeholder="New Password"
+          value={newPassword}
+          onChangeText={setNewPassword}
+          secureTextEntry
+          style={styles.input}
+        />
+        <TextInput
+          placeholder="Confirm New Password"
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          secureTextEntry
+          style={styles.input}
+        />
+        <TouchableOpacity
+          style={styles.saveButton}
+          onPress={handlePasswordChange}
+        >
+          <Text style={styles.saveButtonText}>Update Password</Text>
         </TouchableOpacity>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Name</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your name"
-            value={name}
-            onChangeText={setName}
-          />
-        </View>
-
-        <Button title="Save Settings" onPress={saveSettings} />
-
-        <View style={styles.passwordChangeContainer}>
-          <Text style={styles.passwordChangeTitle}>Change Password</Text>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Old Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter old password"
-              secureTextEntry
-              value={oldPassword}
-              onChangeText={setOldPassword}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>New Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter new password"
-              secureTextEntry
-              value={newPassword}
-              onChangeText={setNewPassword}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Confirm New Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Confirm new password"
-              secureTextEntry
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-            />
-          </View>
-
-          <Button title="Change Password" onPress={handlePasswordChange} />
-        </View>
       </View>
     </ScrollView>
   );
@@ -273,6 +358,26 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 20,
     backgroundColor: "#fff",
+  },
+  inputError: {
+    borderColor: "#dc3545",
+  },
+  errorText: {
+    color: "#dc3545",
+    fontSize: 12,
+    marginTop: 5,
+  },
+  saveButton: {
+    backgroundColor: "#007bff",
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 20,
+  },
+  saveButtonText: {
+    color: "#fff",
+    textAlign: "center",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
 

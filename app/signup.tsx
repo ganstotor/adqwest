@@ -79,7 +79,6 @@ export default function AuthScreen() {
           activationPopupShown: false,
         });
 
-        // После регистрации отправляем на профиль
         router.push("/(driver)/profile");
       } else {
         const userCredential = await signInWithEmailAndPassword(
@@ -89,7 +88,6 @@ export default function AuthScreen() {
         );
         const user = userCredential.user;
 
-        // Получаем документ из коллекции users_driver
         const userDocRef = doc(db, "users_driver", user.uid);
         const userDocSnap = await getDoc(userDocRef);
 
@@ -137,6 +135,7 @@ export default function AuthScreen() {
           style={styles.input}
         />
       )}
+
       <TextInput
         placeholder="Email"
         value={email}
@@ -195,12 +194,10 @@ export default function AuthScreen() {
         <View style={styles.line} />
       </View>
 
-      {/* Кнопка быстрого логина */}
       <TouchableOpacity style={styles.quickButton} onPress={handleQuickLogin}>
         <Text style={styles.buttonText}>Quick Login (alex@mail.com)</Text>
       </TouchableOpacity>
 
-      {/* Кнопка Google авторизации */}
       <TouchableOpacity
         style={[
           styles.authButton,
@@ -336,6 +333,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginVertical: 10,
     flexWrap: "wrap",
+    width: "100%",
   },
   checkboxContainer: {
     flexDirection: "row",
