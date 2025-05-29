@@ -1,6 +1,6 @@
 import { Tabs } from "expo-router";
-import React, { useEffect, useState } from "react";
-import { Platform } from "react-native";
+import React, { useEffect, useState, useRef } from "react";
+import { Platform, Alert } from "react-native";
 import { HapticTab } from "@/components/HapticTab";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import TabBarBackground from "@/components/ui/TabBarBackground";
@@ -9,28 +9,98 @@ import { useColorScheme } from "@/hooks/useColorScheme";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/firebaseConfig";
 import { getAuth } from "firebase/auth";
+import {
+  sendLocalNotification,
+  configurePushNotifications,
+} from "@/utils/notifications";
+import * as Notifications from "expo-notifications";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const [userStatus, setUserStatus] = useState<string | null>(null);
+  const previousStatusRef = useRef<string | null>(null);
+  const notificationSentRef = useRef<boolean>(false);
+
+  // Инициализация уведомлений при запуске
+  useEffect(() => {
+    const initNotifications = async () => {
+      try {
+        const permissionStatus = await configurePushNotifications();
+        console.log("Push notification permission status:", permissionStatus);
+
+        if (!permissionStatus) {
+          Alert.alert(
+            "Notifications Disabled",
+            "Please enable notifications in your device settings to receive important updates"
+          );
+        }
+      } catch (error) {
+        console.error("Error initializing notifications:", error);
+      }
+    };
+
+    initNotifications();
+  }, []);
 
   useEffect(() => {
     const auth = getAuth();
     const unsubscribeAuth = auth.onAuthStateChanged((user) => {
       if (user) {
         const userRef = doc(db, "users_driver", user.uid);
-        const unsubscribeSnapshot = onSnapshot(userRef, (doc) => {
+        const unsubscribeSnapshot = onSnapshot(userRef, async (doc) => {
           if (doc.exists()) {
-            setUserStatus(doc.data().status);
+            const newStatus = doc.data().status;
+            console.log("Status changed:", {
+              previous: previousStatusRef.current,
+              new: newStatus,
+            });
+            setUserStatus(newStatus);
+
+            // Отправляем уведомление только если статус изменился на active и уведомление еще не было отправлено
+            if (
+              previousStatusRef.current !== newStatus &&
+              newStatus === "active" &&
+              !notificationSentRef.current
+            ) {
+              try {
+                const { status } = await Notifications.getPermissionsAsync();
+                console.log("Current notification permission status:", status);
+
+                if (status === "granted") {
+                  await sendLocalNotification(
+                    "Account Activated",
+                    "Your account has been successfully activated! You can now accept orders."
+                  );
+                  console.log("Notification sent successfully");
+                  notificationSentRef.current = true;
+                }
+              } catch (error) {
+                console.error("Error sending notification:", error);
+              }
+            }
+            previousStatusRef.current = newStatus;
           }
         });
         return unsubscribeSnapshot;
       } else {
         setUserStatus(null);
+        previousStatusRef.current = null;
+        notificationSentRef.current = false;
       }
     });
 
     return () => unsubscribeAuth();
+  }, []);
+
+  // Слушатель для отображения уведомлений
+  useEffect(() => {
+    const subscription = Notifications.addNotificationReceivedListener(
+      (notification) => {
+        console.log("Notification received:", notification);
+      }
+    );
+
+    return () => subscription.remove();
   }, []);
 
   return (

@@ -17,30 +17,18 @@ import {
   EmailAuthProvider,
   reauthenticateWithCredential,
 } from "firebase/auth";
-import {
-  doc,
-  getDoc,
-  setDoc,
-  collection,
-  getDocs,
-  query,
-  where,
-} from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import * as ImagePicker from "expo-image-picker";
 import { db, storage } from "../../../firebaseConfig";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { formatPhoneNumber } from "../../../utils/formatPhoneNumber";
 
 const SettingsScreen = () => {
   const [name, setName] = useState("");
-  const [username, setUsername] = useState("");
-  const [phone, setPhone] = useState("");
   const [avatar, setAvatar] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [usernameError, setUsernameError] = useState("");
 
   useEffect(() => {
     const auth = getAuth();
@@ -52,8 +40,6 @@ const SettingsScreen = () => {
         if (docSnap.exists()) {
           const data = docSnap.data();
           if (data.name) setName(data.name);
-          if (data.username) setUsername(data.username);
-          if (data.phone) setPhone(data.phone);
           if (data.avatar) setAvatar(data.avatar);
         }
       }
@@ -108,47 +94,13 @@ const SettingsScreen = () => {
     }
   };
 
-  const validateUsername = async (username: string, currentUserId: string) => {
-    if (!username) {
-      setUsernameError("Username is required");
-      return false;
-    }
-
-    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-      setUsernameError(
-        "Username can only contain letters, numbers and underscore"
-      );
-      return false;
-    }
-
-    const usersSnapshot = await getDocs(
-      query(collection(db, "users_driver"), where("username", "==", username))
-    );
-
-    // Проверяем, что найденный username не принадлежит текущему пользователю
-    if (!usersSnapshot.empty && usersSnapshot.docs[0].id !== currentUserId) {
-      setUsernameError("This username is already taken");
-      return false;
-    }
-
-    setUsernameError("");
-    return true;
-  };
-
   const handleSave = async () => {
     if (userId) {
-      const isUsernameValid = await validateUsername(username, userId);
-      if (!isUsernameValid) {
-        return;
-      }
-
       const docRef = doc(db, "users_driver", userId);
       await setDoc(
         docRef,
         {
           name,
-          username,
-          phone,
           avatar: avatar || null,
         },
         { merge: true }
@@ -222,38 +174,6 @@ const SettingsScreen = () => {
         />
       </View>
 
-      <View style={styles.inputContainer}>
-        <Text style={styles.label}>Username</Text>
-        <TextInput
-          value={username}
-          onChangeText={(text) => {
-            setUsername(text);
-            if (userId) validateUsername(text, userId);
-          }}
-          style={[styles.input, usernameError ? styles.inputError : null]}
-          placeholder="Enter your username"
-        />
-        {usernameError ? (
-          <Text style={styles.errorText}>{usernameError}</Text>
-        ) : null}
-      </View>
-
-      <View style={styles.inputContainer}>
-        <Text style={styles.label}>Phone</Text>
-        <TextInput
-          value={phone}
-          onChangeText={(text) => {
-            const formatted = formatPhoneNumber(text);
-            if (formatted !== null) {
-              setPhone(formatted);
-            }
-          }}
-          style={styles.input}
-          placeholder="Enter your phone number"
-          keyboardType="phone-pad"
-        />
-      </View>
-
       <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
         <Text style={styles.saveButtonText}>Save Changes</Text>
       </TouchableOpacity>
@@ -293,8 +213,8 @@ const SettingsScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  scrollContainer: {
+    flexGrow: 1,
     padding: 20,
     backgroundColor: "#fff",
   },
@@ -353,19 +273,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 15,
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    padding: 20,
-    backgroundColor: "#fff",
-  },
-  inputError: {
-    borderColor: "#dc3545",
-  },
-  errorText: {
-    color: "#dc3545",
-    fontSize: 12,
-    marginTop: 5,
   },
   saveButton: {
     backgroundColor: "#007bff",

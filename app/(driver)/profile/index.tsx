@@ -33,7 +33,6 @@ type UserData = {
   screenshots?: string[];
   location?: GeoPoint;
   milesRadius?: number;
-  username: string;
 };
 
 type DeliveryApp = {
@@ -197,7 +196,6 @@ const ProfileScreen = () => {
             screenshots: data.screenshots || [],
             location: data.location,
             milesRadius: data.milesRadius,
-            username: data.username || "No username",
           });
           setSelectedApps(data.selectedApps || []);
           setOtherAppName(data.otherAppName || "");
@@ -642,8 +640,6 @@ const ProfileScreen = () => {
         )}
       </View>
 
-      <Text style={styles.username}>@{userData.username}</Text>
-
       {userRank && (
         <View style={styles.rankContainer}>
           <Text style={styles.rankText}>{userRank.name}</Text>
@@ -1027,12 +1023,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 5,
     textAlign: "center",
-  },
-  username: {
-    fontSize: 16,
-    color: "#666",
-    marginBottom: 10,
-    fontWeight: "500",
   },
 });
 

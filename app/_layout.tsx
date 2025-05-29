@@ -10,6 +10,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import "react-native-reanimated";
+import { configurePushNotifications } from "@/utils/notifications";
 
 import { useColorScheme } from "@/hooks/useColorScheme";
 
@@ -43,6 +44,10 @@ export default function RootLayout() {
     }
   }, [isAppReady]);
 
+  useEffect(() => {
+    configurePushNotifications();
+  }, []);
+
   if (!loaded) {
     return null;
   }
@@ -50,7 +55,10 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <Stack>
-        <Stack.Screen name="index" options={{ headerShown: false, headerTitle: "" }}/>
+        <Stack.Screen
+          name="index"
+          options={{ headerShown: false, headerTitle: "" }}
+        />
         <Stack.Screen name="signup" options={{ headerShown: false }} />
         <Stack.Screen name="(driver)" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
