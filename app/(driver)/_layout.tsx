@@ -6,7 +6,7 @@ import { IconSymbol } from "@/components/ui/IconSymbol";
 import TabBarBackground from "@/components/ui/TabBarBackground";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "@/firebaseConfig";
 import { getAuth } from "firebase/auth";
 import {
@@ -50,6 +50,8 @@ export default function TabLayout() {
         const unsubscribeSnapshot = onSnapshot(userRef, async (doc) => {
           if (doc.exists()) {
             const newStatus = doc.data().status;
+            const hasReceivedActivationNotification =
+              doc.data().hasReceivedActivationNotification;
             console.log("Status changed:", {
               previous: previousStatusRef.current,
               new: newStatus,
@@ -60,7 +62,7 @@ export default function TabLayout() {
             if (
               previousStatusRef.current !== newStatus &&
               newStatus === "active" &&
-              !notificationSentRef.current
+              !hasReceivedActivationNotification
             ) {
               try {
                 const { status } = await Notifications.getPermissionsAsync();
@@ -71,8 +73,13 @@ export default function TabLayout() {
                     "Account Activated",
                     "Your account has been successfully activated! You can now accept orders."
                   );
-                  console.log("Notification sent successfully");
-                  notificationSentRef.current = true;
+                  // Сохраняем информацию о том, что уведомление было отправлено
+                  await updateDoc(userRef, {
+                    hasReceivedActivationNotification: true,
+                  });
+                  console.log(
+                    "Notification sent successfully and status saved"
+                  );
                 }
               } catch (error) {
                 console.error("Error sending notification:", error);
@@ -85,7 +92,6 @@ export default function TabLayout() {
       } else {
         setUserStatus(null);
         previousStatusRef.current = null;
-        notificationSentRef.current = false;
       }
     });
 
