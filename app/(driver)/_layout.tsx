@@ -6,7 +6,16 @@ import { IconSymbol } from "@/components/ui/IconSymbol";
 import TabBarBackground from "@/components/ui/TabBarBackground";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
-import { doc, onSnapshot, updateDoc } from "firebase/firestore";
+import {
+  doc,
+  onSnapshot,
+  query,
+  collection,
+  orderBy,
+  getDoc,
+  setDoc,
+  updateDoc,
+} from "firebase/firestore";
 import { db } from "@/firebaseConfig";
 import { getAuth } from "firebase/auth";
 import {
@@ -20,6 +29,28 @@ export default function TabLayout() {
   const [userStatus, setUserStatus] = useState<string | null>(null);
   const previousStatusRef = useRef<string | null>(null);
   const notificationSentRef = useRef<boolean>(false);
+  const [userZipStrings, setUserZipStrings] = useState<Set<string>>(new Set());
+  const [userStates, setUserStates] = useState<Set<string>>(new Set());
+
+  // Функция для проверки и сохранения информации о показанном уведомлении
+  const checkAndSaveNotification = async (
+    campaignId: string,
+    userId: string
+  ) => {
+    const notificationRef = doc(
+      db,
+      `users_driver/${userId}/campaign_notifications/${campaignId}`
+    );
+    const notificationDoc = await getDoc(notificationRef);
+
+    if (!notificationDoc.exists()) {
+      await setDoc(notificationRef, {
+        shownAt: new Date(),
+      });
+      return true;
+    }
+    return false;
+  };
 
   // Инициализация уведомлений при запуске
   useEffect(() => {
@@ -42,6 +73,7 @@ export default function TabLayout() {
     initNotifications();
   }, []);
 
+  // Отслеживание статуса пользователя и его местоположения
   useEffect(() => {
     const auth = getAuth();
     const unsubscribeAuth = auth.onAuthStateChanged((user) => {
@@ -49,16 +81,31 @@ export default function TabLayout() {
         const userRef = doc(db, "users_driver", user.uid);
         const unsubscribeSnapshot = onSnapshot(userRef, async (doc) => {
           if (doc.exists()) {
-            const newStatus = doc.data().status;
+            const userData = doc.data();
+            const newStatus = userData.status;
             const hasReceivedActivationNotification =
-              doc.data().hasReceivedActivationNotification;
+              userData.hasReceivedActivationNotification;
+            const zipCodeObjects = userData.zipCodes || [];
+
             console.log("Status changed:", {
               previous: previousStatusRef.current,
               new: newStatus,
             });
             setUserStatus(newStatus);
 
-            // Отправляем уведомление только если статус изменился на active и уведомление еще не было отправлено
+            // Обновляем ZIP-коды и штаты пользователя
+            const newUserStates = new Set<string>();
+            const newUserZipStrings = new Set<string>();
+
+            for (const zip of zipCodeObjects) {
+              if (zip.state) newUserStates.add(zip.state);
+              if (zip.key) newUserZipStrings.add(zip.key);
+            }
+
+            setUserStates(newUserStates);
+            setUserZipStrings(newUserZipStrings);
+
+            // Отправляем уведомление об активации аккаунта
             if (
               previousStatusRef.current !== newStatus &&
               newStatus === "active" &&
@@ -77,9 +124,7 @@ export default function TabLayout() {
                   await updateDoc(userRef, {
                     hasReceivedActivationNotification: true,
                   });
-                  console.log(
-                    "Notification sent successfully and status saved"
-                  );
+                  console.log("Activation notification sent and status saved");
                 }
               } catch (error) {
                 console.error("Error sending notification:", error);
@@ -88,10 +133,60 @@ export default function TabLayout() {
             previousStatusRef.current = newStatus;
           }
         });
-        return unsubscribeSnapshot;
+
+        // Отслеживание новых кампаний
+        const campaignsQuery = query(
+          collection(db, "campaigns"),
+          orderBy("startDate", "desc")
+        );
+
+        const unsubscribeCampaigns = onSnapshot(
+          campaignsQuery,
+          async (snapshot) => {
+            for (const change of snapshot.docChanges()) {
+              if (change.type === "added") {
+                const data = change.doc.data();
+                const campaignId = change.doc.id;
+
+                const matchesNation = data.nation === true;
+                const matchesZip = data.zipCodes?.some((zip: string) =>
+                  userZipStrings.has(zip)
+                );
+                const matchesState = data.states?.some((state: string) =>
+                  userStates.has(state)
+                );
+
+                if (matchesNation || matchesZip || matchesState) {
+                  const shouldShowNotification = await checkAndSaveNotification(
+                    campaignId,
+                    user.uid
+                  );
+                  if (shouldShowNotification) {
+                    const { status } =
+                      await Notifications.getPermissionsAsync();
+                    if (status === "granted") {
+                      await sendLocalNotification(
+                        "New Campaign Available!",
+                        "A new campaign has appeared in your area. Check it out!"
+                      );
+                    }
+                  }
+                }
+              }
+            }
+          }
+        );
+
+        return () => {
+          unsubscribeSnapshot();
+          unsubscribeCampaigns();
+        };
       } else {
         setUserStatus(null);
         previousStatusRef.current = null;
+        notificationSentRef.current = false;
+        setUserStates(new Set());
+        setUserZipStrings(new Set());
       }
     });
 

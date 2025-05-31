@@ -14,97 +14,115 @@ import {
   getFirestore,
   doc,
   getDoc,
-  getDocs,
   collection,
+  onSnapshot,
+  query,
+  orderBy,
 } from "firebase/firestore";
+
+interface UserAdData {
+  companyName?: string;
+  logo?: string;
+}
 
 const OrderBagsScreen = () => {
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userZipStrings, setUserZipStrings] = useState<Set<string>>(new Set());
+  const [userStates, setUserStates] = useState<Set<string>>(new Set());
   const db = getFirestore();
   const auth = getAuth();
   const router = useRouter();
 
+  // Получение ZIP-кодов и штатов пользователя
   useEffect(() => {
-    interface UserAdData {
-      companyName: string | null;
-      logo: string | null;
-    }
+    const userId = auth.currentUser?.uid;
+    if (!userId) return;
 
-    const fetchData = async () => {
-      try {
-        const userId = auth.currentUser?.uid;
-        if (!userId) return;
-
-        // Получаем zipCodes пользователя
-        const userSnap = await getDoc(doc(db, "users_driver", userId));
+    const userRef = doc(db, "users_driver", userId);
+    return onSnapshot(userRef, (userSnap) => {
+      if (userSnap.exists()) {
         const zipCodeObjects: { key: string; state: string }[] =
           userSnap.data()?.zipCodes || [];
 
-        const userStates = new Set<string>();
-        const userZipStrings = new Set<string>();
+        const newUserStates = new Set<string>();
+        const newUserZipStrings = new Set<string>();
 
         for (const zip of zipCodeObjects) {
-          if (zip.state) userStates.add(zip.state);
-          if (zip.key) userZipStrings.add(zip.key);
+          if (zip.state) newUserStates.add(zip.state);
+          if (zip.key) newUserZipStrings.add(zip.key);
         }
 
-        // Получаем кампании и фильтруем
-        const campaignsSnap = await getDocs(collection(db, "campaigns"));
-        const filtered: any[] = [];
+        setUserStates(newUserStates);
+        setUserZipStrings(newUserZipStrings);
+      }
+    });
+  }, []);
 
-        for (const campaignDoc of campaignsSnap.docs) {
-          const data = campaignDoc.data();
+  // Отслеживание кампаний в реальном времени
+  useEffect(() => {
+    const campaignsQuery = query(
+      collection(db, "campaigns"),
+      orderBy("startDate", "desc")
+    );
 
-          const matchesNation = data.nation === true;
-          const matchesZip = data.zipCodes?.some((zip: string) =>
-            userZipStrings.has(zip)
-          );
-          const matchesState = data.states?.some((state: string) =>
-            userStates.has(state)
-          );
-
-          if (matchesNation || matchesZip || matchesState) {
+    const unsubscribe = onSnapshot(campaignsQuery, async (snapshot) => {
+      try {
+        // Обновляем список всех кампаний
+        const allFiltered = await Promise.all(
+          snapshot.docs.map(async (campaignDoc) => {
+            const data = campaignDoc.data();
             const campaignId = campaignDoc.id;
-            let companyName = null;
-            let logo = null;
 
-            const userAdRef = data.userAdId;
-            if (userAdRef) {
-              // Получаем документ по ссылке
-              const userAdSnap = await getDoc(userAdRef); // Используем ссылку, а не только ID
-              if (userAdSnap.exists()) {
-                const userAdData = userAdSnap.data() as UserAdData; // Явное указание типа данных
-                companyName = userAdData?.companyName || null;
-                logo = userAdData?.logo || null;
+            const matchesNation = data.nation === true;
+            const matchesZip = data.zipCodes?.some((zip: string) =>
+              userZipStrings.has(zip)
+            );
+            const matchesState = data.states?.some((state: string) =>
+              userStates.has(state)
+            );
 
-                // Проверка и корректировка пути к логотипу
-                if (logo && logo.startsWith("//")) {
-                  logo = "https:" + logo; // Добавление https:// если это необходимо
+            if (matchesNation || matchesZip || matchesState) {
+              let companyName = null;
+              let logo = null;
+
+              const userAdRef = data.userAdId;
+              if (userAdRef) {
+                const userAdSnap = await getDoc(userAdRef);
+                if (userAdSnap.exists()) {
+                  const userAdData = userAdSnap.data() as UserAdData;
+                  companyName = userAdData?.companyName || null;
+                  logo = userAdData?.logo || null;
+
+                  if (logo && logo.startsWith("//")) {
+                    logo = "https:" + logo;
+                  }
                 }
               }
+
+              return {
+                id: campaignId,
+                ...data,
+                companyName,
+                logo,
+                userAdId: userAdRef?.id,
+              };
             }
+            return null;
+          })
+        );
 
-            filtered.push({
-              id: campaignId,
-              ...data,
-              companyName,
-              logo,
-              userAdId: userAdRef?.id,
-            });
-          }
-        }
-
-        setCampaigns(filtered);
+        // Фильтруем null значения и обновляем состояние
+        setCampaigns(allFiltered.filter(Boolean));
+        setLoading(false);
       } catch (error) {
-        console.error("Error fetching campaigns:", error);
-      } finally {
+        console.error("Error processing campaigns:", error);
         setLoading(false);
       }
-    };
+    });
 
-    fetchData();
-  }, []);
+    return () => unsubscribe();
+  }, [userZipStrings, userStates]);
 
   if (loading) {
     return (
@@ -186,22 +204,22 @@ const OrderBagsScreen = () => {
           <Text style={{ fontSize: 20, fontWeight: "bold", marginBottom: 10 }}>
             There are no campaigns available in your area yet.
           </Text>
-          <Text style={{ marginBottom: 5 }}>Don’t you worry!</Text>
+          <Text style={{ marginBottom: 5 }}>Don't you worry!</Text>
           <Text style={{ marginBottom: 15 }}>
-            We’re coming to your area soon! :)
+            We're coming to your area soon! :)
           </Text>
-            <TouchableOpacity
-              style={{
-                padding: 10,
-                backgroundColor: "#007aff",
-                borderRadius: 6,
-              }}
-              onPress={() => router.push("/(driver)/profile/location")}
-            >
-              <Text style={{ color: "white", textAlign: "center" }}>
-                Would you like to choose a different area?
-              </Text>
-            </TouchableOpacity>
+          <TouchableOpacity
+            style={{
+              padding: 10,
+              backgroundColor: "#007aff",
+              borderRadius: 6,
+            }}
+            onPress={() => router.push("/(driver)/profile/location")}
+          >
+            <Text style={{ color: "white", textAlign: "center" }}>
+              Would you like to choose a different area?
+            </Text>
+          </TouchableOpacity>
         </View>
       )}
     </View>
