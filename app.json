@@ -12,7 +12,10 @@
       "supportsTablet": true,
       "googleServicesFile": "./GoogleService-Info.plist",
       "runtimeVersion": "1.0.0",
-      "bundleIdentifier": "com.adqwest.app"
+      "bundleIdentifier": "com.adqwest.app",
+      "config": {
+        "googleMapsApiKey": "AIzaSyAKzJHmT9Mxs2G6voDa-EKol83wtRxou3E"
+      }
     },
     "android": {
       "googleServicesFile": "./google-services.json",
@@ -29,7 +32,12 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.adqwest",
-      "runtimeVersion": "1.0.0"
+      "runtimeVersion": "1.0.0",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyAKzJHmT9Mxs2G6voDa-EKol83wtRxou3E"
+        }
+      }
     },
     "web": {
       "bundler": "metro",
@@ -40,7 +48,13 @@
       "expo-router",
       "@react-native-google-signin/google-signin",
       "expo-secure-store",
-      "expo-barcode-scanner"
+      "expo-barcode-scanner",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location."
+        }
+      ]
     ],
     "splash": {
       "image": "./assets/images/logo.png",
