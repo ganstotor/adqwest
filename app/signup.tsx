@@ -17,10 +17,22 @@ import {
   signInWithCredential,
 } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
-import * as Google from "expo-auth-session/providers/google";
-import * as WebBrowser from "expo-web-browser";
+import {
+  GoogleSignin,
+  GoogleSigninButton,
+  statusCodes,
+} from "@react-native-google-signin/google-signin";
+import { Button } from "react-native";
 
-WebBrowser.maybeCompleteAuthSession();
+const GOOGLE_WEB_CLIENT_ID = "251220864547-nl5afre9cfa1lko18a51vbun8jhkv4mh.apps.googleusercontent.com";
+
+// Configure Google Sign-In
+GoogleSignin.configure({
+  webClientId: GOOGLE_WEB_CLIENT_ID,
+  offlineAccess: true,
+  forceCodeForRefreshToken: true,
+  scopes: ['profile', 'email'],
+});
 
 export default function AuthScreen() {
   const [mode, setMode] = useState<"login" | "signup">("signup");
@@ -30,27 +42,6 @@ export default function AuthScreen() {
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const router = useRouter();
-
-  // Google Auth request
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId:
-      "251220864547-nl5afre9cfa1lko18a51vbun8jhkv4mh.apps.googleusercontent.com",
-  });
-
-  useEffect(() => {
-    if (response?.type === "success") {
-      const { id_token } = response.params;
-      const credential = GoogleAuthProvider.credential(id_token);
-
-      signInWithCredential(auth, credential)
-        .then(() => {
-          router.push("/(driver)/my-qwests" as any);
-        })
-        .catch((error) => {
-          alert("Google Sign-In failed: " + error.message);
-        });
-    }
-  }, [response]);
 
   const handleAuth = async () => {
     try {
@@ -118,6 +109,49 @@ export default function AuthScreen() {
       router.push("/(driver)/profile" as any);
     } catch (error: any) {
       alert(`Quick login failed: ${error.message}`);
+    }
+  };
+
+  const signInWithGoogle = async () => {
+    try {
+      console.log('Starting Google Sign-In...');
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const userInfo = await GoogleSignin.signIn();
+      const { idToken } = await GoogleSignin.getTokens();
+      if (!idToken) {
+        throw new Error('No ID token present!');
+      }
+      const credential = GoogleAuthProvider.credential(idToken);
+      const userCredential = await signInWithCredential(auth, credential);
+      const user = userCredential.user;
+      const userDocRef = doc(db, "users_driver", user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+      if (!userDocSnap.exists()) {
+        await setDoc(userDocRef, {
+          email: user.email,
+          name: user.displayName || name,
+          rank: "Recruit",
+          completedMissionsCount: 0,
+          uncompletedMissionsCount: 0,
+          failedMissionsCount: 0,
+          milesRadius: 10,
+          status: "pending",
+          activationPopupShown: false,
+        });
+        router.push("/(driver)/profile");
+      } else {
+        const userData = userDocSnap.data();
+        if (userData.activationPopupShown) {
+          router.push("/(driver)/profile");
+        } else if (userData.status === "active") {
+          router.push("/(driver)/my-qwests");
+        } else {
+          router.push("/(driver)/profile");
+        }
+      }
+    } catch (error: any) {
+      console.error('Google Sign-In Error:', error);
+      alert('Google Sign-In failed: ' + error.message);
     }
   };
 
@@ -198,16 +232,12 @@ export default function AuthScreen() {
         <Text style={styles.buttonText}>Quick Login (alex@mail.com)</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[
-          styles.authButton,
-          { backgroundColor: "#4285F4", marginTop: 10 },
-        ]}
-        disabled={!request}
-        onPress={() => promptAsync()}
-      >
-        <Text style={styles.buttonText}>Sign In with Google</Text>
-      </TouchableOpacity>
+      <GoogleSigninButton
+        style={{ width: 192, height: 48, marginTop: 10 }}
+        size={GoogleSigninButton.Size.Wide}
+        color={GoogleSigninButton.Color.Dark}
+        onPress={signInWithGoogle}
+      />
 
       <Modal
         visible={showTermsModal}
