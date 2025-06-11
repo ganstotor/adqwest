@@ -14,11 +14,27 @@
       },
       "oauth_client": [
         {
+          "client_id": "251220864547-caf5vfbgrfo88djsk0ng8j0vq39funcr.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.adqwest",
+            "certificate_hash": "ab829639116b3b5bb9ab29c7cc0825e663c164e4"
+          }
+        },
+        {
           "client_id": "251220864547-quoti8bdop9q4ool4n40r72pokqiqa2k.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.adqwest",
             "certificate_hash": "3ca82ff420bbaeb874976217809d1b3eb062c185"
+          }
+        },
+        {
+          "client_id": "251220864547-ucko406ihbj26nutpcgav4obihhjmdb0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.adqwest",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
           }
         },
         {

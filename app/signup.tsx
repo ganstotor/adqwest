@@ -27,12 +27,14 @@ import { Button } from "react-native";
 const GOOGLE_WEB_CLIENT_ID = "251220864547-nl5afre9cfa1lko18a51vbun8jhkv4mh.apps.googleusercontent.com";
 
 // Configure Google Sign-In
+console.log('Configuring Google Sign-In with webClientId:', GOOGLE_WEB_CLIENT_ID);
 GoogleSignin.configure({
   webClientId: GOOGLE_WEB_CLIENT_ID,
   offlineAccess: true,
   forceCodeForRefreshToken: true,
   scopes: ['profile', 'email'],
 });
+console.log('Google Sign-In configuration completed');
 
 export default function AuthScreen() {
   const [mode, setMode] = useState<"login" | "signup">("signup");
@@ -115,18 +117,38 @@ export default function AuthScreen() {
   const signInWithGoogle = async () => {
     try {
       console.log('Starting Google Sign-In...');
+      console.log('Checking Play Services...');
       await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      console.log('Play Services check passed');
+      
+      console.log('Attempting to sign in with Google...');
       const userInfo = await GoogleSignin.signIn();
+      console.log('Google Sign-In successful, user info:', userInfo);
+      
+      console.log('Getting tokens...');
       const { idToken } = await GoogleSignin.getTokens();
+      console.log('Got tokens, idToken exists:', !!idToken);
+      
       if (!idToken) {
         throw new Error('No ID token present!');
       }
+      
+      console.log('Creating Firebase credential...');
       const credential = GoogleAuthProvider.credential(idToken);
+      console.log('Firebase credential created');
+      
+      console.log('Signing in to Firebase...');
       const userCredential = await signInWithCredential(auth, credential);
       const user = userCredential.user;
+      console.log('Firebase sign in successful, user:', user.uid);
+      
+      console.log('Checking user document...');
       const userDocRef = doc(db, "users_driver", user.uid);
       const userDocSnap = await getDoc(userDocRef);
+      console.log('User document exists:', userDocSnap.exists());
+      
       if (!userDocSnap.exists()) {
+        console.log('Creating new user document...');
         await setDoc(userDocRef, {
           email: user.email,
           name: user.displayName || name,
@@ -138,9 +160,11 @@ export default function AuthScreen() {
           status: "pending",
           activationPopupShown: false,
         });
+        console.log('New user document created');
         router.push("/(driver)/profile");
       } else {
         const userData = userDocSnap.data();
+        console.log('Existing user data:', userData);
         if (userData.activationPopupShown) {
           router.push("/(driver)/profile");
         } else if (userData.status === "active") {
@@ -150,7 +174,12 @@ export default function AuthScreen() {
         }
       }
     } catch (error: any) {
-      console.error('Google Sign-In Error:', error);
+      console.error('Google Sign-In Error Details:', {
+        code: error.code,
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
       alert('Google Sign-In failed: ' + error.message);
     }
   };
