@@ -406,14 +406,12 @@ const ProfileScreen = () => {
               <Text style={styles.modalTitle}>
                 Verification - Step {verificationStep}
               </Text>
-              {canCloseModal && (
-                <TouchableOpacity
-                  style={styles.closeButton}
-                  onPress={() => setShowVerificationModal(false)}
-                >
-                  <Icon name="close" size={24} color="#000" />
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={() => setShowVerificationModal(false)}
+              >
+                <Icon name="close" size={24} color="#000" />
+              </TouchableOpacity>
             </View>
 
             <ProgressBar

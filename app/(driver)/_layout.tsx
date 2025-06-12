@@ -143,6 +143,16 @@ export default function TabLayout() {
         const unsubscribeCampaigns = onSnapshot(
           campaignsQuery,
           async (snapshot) => {
+            // Получаем актуальный статус пользователя из Firestore
+            const userDoc = await getDoc(userRef);
+            if (!userDoc.exists()) return;
+
+            const userData = userDoc.data();
+            if (userData.status === "pending") return;
+
+            let hasNewCampaigns = false;
+            const newCampaignIds: string[] = [];
+
             for (const change of snapshot.docChanges()) {
               if (change.type === "added") {
                 const data = change.doc.data();
@@ -162,16 +172,26 @@ export default function TabLayout() {
                     user.uid
                   );
                   if (shouldShowNotification) {
-                    const { status } =
-                      await Notifications.getPermissionsAsync();
-                    if (status === "granted") {
-                      await sendLocalNotification(
-                        "New Campaign Available!",
-                        "A new campaign has appeared in your area. Check it out!"
-                      );
-                    }
+                    hasNewCampaigns = true;
+                    newCampaignIds.push(campaignId);
                   }
                 }
+              }
+            }
+
+            // Отправляем одно уведомление для всех новых кампаний
+            if (hasNewCampaigns) {
+              const { status } = await Notifications.getPermissionsAsync();
+              if (status === "granted") {
+                const message =
+                  newCampaignIds.length > 1
+                    ? `${newCampaignIds.length} new campaigns have appeared in your area!`
+                    : "A new campaign has appeared in your area!";
+
+                await sendLocalNotification(
+                  "New Campaigns Available!",
+                  message
+                );
               }
             }
           }
