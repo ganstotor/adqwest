@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, Modal } from 'react-native';
+import { View, TouchableOpacity, Image, StyleSheet, Modal, ScrollView } from 'react-native';
 import * as Progress from 'react-native-progress';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../../firebaseConfig';
 import { Ionicons } from '@expo/vector-icons';
+import Typography from '../../../components/ui/Typography';
+import GoldButton from '../../../components/ui/GoldButton';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import { Colors, ACCENT1_LIGHT, ACCENT2_LIGHT, BACKGROUND1_LIGHT, WHITE } from '../../../constants/Colors';
 
 const ranks = [
   {
@@ -103,13 +107,13 @@ const RewardsScreen: React.FC = () => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.tooltipTitle}>{info.name} Details</Text>
-            {info.perks && <Text style={styles.tooltipText}>🟢 Perks: {info.perks}</Text>}
-            {info.requirements && <Text style={styles.tooltipText}>📌 Requirements: {info.requirements}</Text>}
-            {info.restrictions && <Text style={styles.tooltipText}>🚫 Restrictions: {info.restrictions}</Text>}
-            {info.bagLimit && <Text style={styles.tooltipText}>📦 Bag Limit: {info.bagLimit}</Text>}
+            <Typography variant="h5" style={styles.tooltipTitle}>{info.name} Details</Typography>
+            {info.perks && <Typography variant="body2" style={styles.tooltipText}>🟢 Perks: {info.perks}</Typography>}
+            {info.requirements && <Typography variant="body2" style={styles.tooltipText}>📌 Requirements: {info.requirements}</Typography>}
+            {info.restrictions && <Typography variant="body2" style={styles.tooltipText}>🚫 Restrictions: {info.restrictions}</Typography>}
+            {info.bagLimit && <Typography variant="body2" style={styles.tooltipText}>📦 Bag Limit: {info.bagLimit}</Typography>}
             <TouchableOpacity onPress={closeTooltip} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>Close</Text>
+              <Typography variant="label2" style={styles.closeButtonText}>Close</Typography>
             </TouchableOpacity>
           </View>
         </View>
@@ -118,58 +122,70 @@ const RewardsScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Your current rank is:</Text>
-
-      <View style={styles.rankRow}>
-        <Text style={styles.rank}>{rank}</Text>
-        <TouchableOpacity onPress={() => openTooltip(rank)}>
-          <Ionicons name="help-circle-outline" size={20} color="gray" />
-        </TouchableOpacity>
-      </View>
-
-      {rankImage && (
-        <Image source={{ uri: rankImage }} style={styles.rankImage} />
-      )}
-
-      {renderTooltip(rank)}
-
-      {nextRank !== "Max Rank" ? (
-        <>
-          <Text style={styles.subTitle}>Your progress to the next rank:</Text>
-
-          <View style={styles.rankRow}>
-            <Text style={styles.rank}>{nextRank}</Text>
-            {nextRankImage && (
-              <Image source={{ uri: nextRankImage }} style={styles.nextRankImage} />
-            )}
-            <TouchableOpacity onPress={() => openTooltip(nextRank)}>
-              <Ionicons name="help-circle-outline" size={20} color="gray" />
-            </TouchableOpacity>
-          </View>
-
-          {renderTooltip(nextRank)}
-
-          <View style={styles.progressInfo}>
-            <Text style={styles.completedText}>
-              Completed missions: {completedMissions}/{targetMissions}
-            </Text>
-          </View>
-
-          <Progress.Bar
-            progress={progress}
-            width={null}
-            color="#4CAF50"
-            unfilledColor="#ddd"
-            borderRadius={10}
-            height={20}
-          />
-        </>
-      ) : (
-        <Text style={styles.subTitle}>You've reached the highest rank!</Text>
-      )}
-
-      <Text style={styles.failedText}>Failed missions: {failedMissions}</Text>
+    <View style={{ flex: 1 }}>
+      <Svg height="100%" width="100%" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: -1 }}>
+        <Defs>
+          <LinearGradient id="bgGradient" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0%" stopColor="#02010C" />
+            <Stop offset="100%" stopColor="#08061A" />
+          </LinearGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#bgGradient)" />
+      </Svg>
+      <ScrollView contentContainerStyle={styles.container}>
+        <Typography variant="h4" style={{ textAlign: 'center', marginBottom: 10 }}>
+          Your current rank is:
+        </Typography>
+        <View style={styles.rankRow}>
+          <Typography variant="h5" style={styles.rank}>{rank}</Typography>
+          <TouchableOpacity onPress={() => openTooltip(rank)}>
+            <Ionicons name="help-circle-outline" size={20} color="#FDEA35" />
+          </TouchableOpacity>
+        </View>
+        {rankImage && (
+          <Image source={{ uri: rankImage }} style={styles.rankImage} />
+        )}
+        {renderTooltip(rank)}
+        {nextRank !== "Max Rank" ? (
+          <>
+            <Typography variant="h6" style={{ textAlign: 'center', marginTop: 30, marginBottom: 10 }}>
+              Your progress to the next rank:
+            </Typography>
+            <View style={styles.rankRow}>
+              <Typography variant="h5" style={styles.rank}>{nextRank}</Typography>
+              {nextRankImage && (
+                <Image source={{ uri: nextRankImage }} style={styles.nextRankImage} />
+              )}
+              <TouchableOpacity onPress={() => openTooltip(nextRank)}>
+                <Ionicons name="help-circle-outline" size={20} color="#FDEA35" />
+              </TouchableOpacity>
+            </View>
+            {renderTooltip(nextRank)}
+            <View style={styles.progressInfo}>
+              <Typography variant="body2">
+                Completed missions: {completedMissions}/{targetMissions}
+              </Typography>
+            </View>
+            <Progress.Bar
+              progress={progress}
+              width={null}
+              color={ACCENT1_LIGHT}
+              unfilledColor="transparent"
+              borderWidth={1}
+              borderColor={ACCENT1_LIGHT}
+              borderRadius={10}
+              height={20}
+            />
+          </>
+        ) : (
+          <Typography variant="h6" style={{ textAlign: 'center', marginTop: 30, marginBottom: 10 }}>
+            You've reached the highest rank!
+          </Typography>
+        )}
+        <Typography variant="body2" style={styles.failedText}>
+          Failed missions: {failedMissions}
+        </Typography>
+      </ScrollView>
     </View>
   );
 };
@@ -178,8 +194,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
+    backgroundColor: 'transparent',
   },
   title: {
     fontSize: 22,
@@ -196,79 +211,70 @@ const styles = StyleSheet.create({
   },
   rankRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 5,
-    gap: 10,
+    justifyContent: 'center',
+    marginBottom: 20,
   },
   rank: {
-    fontSize: 22,
-    fontWeight: '600',
-    textAlign: 'center',
+    color: ACCENT2_LIGHT,
+    marginRight: 10,
   },
   rankImage: {
-    width: 100,
-    height: 100,
-    marginTop: 10,
-    marginBottom: 20,
-    resizeMode: 'contain',
+    width: 200,
+    height: 200,
     alignSelf: 'center',
+    marginVertical: 20,
   },
   nextRankImage: {
-    width: 40,
-    height: 40,
-    resizeMode: 'contain',
-    marginLeft: 8,
+    width: 50,
+    height: 50,
+    marginHorizontal: 10,
   },
   progressInfo: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: 10,
-    marginTop: 20,
+    marginVertical: 10,
+    alignItems: 'center',
   },
   completedText: {
     fontSize: 16,
     fontWeight: '500',
   },
   failedText: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginTop: 20,
-    color: '#d32f2f',
+    color: ACCENT1_LIGHT,
     textAlign: 'center',
+    marginTop: 20,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: 'white',
-    borderRadius: 10,
+    backgroundColor: BACKGROUND1_LIGHT,
     padding: 20,
-    width: '85%',
+    borderRadius: 10,
+    width: '80%',
+    borderWidth: 1,
+    borderColor: ACCENT2_LIGHT,
   },
   tooltipTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
+    color: ACCENT2_LIGHT,
+    marginBottom: 15,
+    textAlign: 'center',
   },
   tooltipText: {
-    fontSize: 14,
-    marginBottom: 8,
-    color: '#333',
+    color: WHITE,
+    marginBottom: 10,
   },
   closeButton: {
-    marginTop: 10,
-    backgroundColor: '#4CAF50',
+    marginTop: 20,
     padding: 10,
-    borderRadius: 6,
-    alignSelf: 'center',
+    backgroundColor: ACCENT2_LIGHT,
+    borderRadius: 5,
+    alignItems: 'center',
   },
   closeButtonText: {
-    color: 'white',
-    fontWeight: '600',
+    color: BACKGROUND1_LIGHT,
   },
 });
 

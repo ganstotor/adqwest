@@ -22,6 +22,8 @@ import * as Location from "expo-location";
 import { GeoPoint } from "firebase/firestore";
 import Icon from "react-native-vector-icons/Ionicons";
 import { getZipList } from "../../../utils/zipUtils";
+import GoldButton from '../../../components/ui/GoldButton';
+import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
 type UserData = {
   name: string;
@@ -398,309 +400,310 @@ const ProfileScreen = () => {
   const userRank = ranks.find((r) => r.name === userData.rank);
 
   return (
-    <View style={styles.container}>
-      {showVerificationModal && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                Verification - Step {verificationStep}
-              </Text>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setShowVerificationModal(false)}
-              >
-                <Icon name="close" size={24} color="#000" />
-              </TouchableOpacity>
-            </View>
-
-            <ProgressBar
-              currentStep={verificationStep}
-              totalSteps={totalSteps}
-            />
-
-            {verificationStep === 1 && (
-              <>
-                <Text style={styles.questionText}>
-                  Select delivery apps you use:
+    <View style={{ flex: 1 }}>
+      <View style={{ ...StyleSheet.absoluteFillObject, zIndex: -1 }}>
+        {/* Градиентный фон Background1-dark */}
+        <Svg height="100%" width="100%" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+          <Defs>
+            <LinearGradient id="bgGradient" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0%" stopColor="#02010C" />
+              <Stop offset="100%" stopColor="#08061A" />
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100%" height="100%" fill="url(#bgGradient)" />
+        </Svg>
+      </View>
+      <View style={[styles.container, { backgroundColor: 'transparent' }]}>
+        {showVerificationModal && (
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                  Verification - Step {verificationStep}
                 </Text>
-                <View style={styles.appsContainer}>
-                  {deliveryApps.map((app) => (
-                    <TouchableOpacity
-                      key={app.id}
-                      style={[
-                        styles.appButton,
-                        selectedApps.includes(app.id) &&
-                          styles.appButtonSelected,
-                      ]}
-                      onPress={() => toggleApp(app.id)}
-                    >
-                      <Text
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={() => setShowVerificationModal(false)}
+                >
+                  <Icon name="close" size={24} color="#000" />
+                </TouchableOpacity>
+              </View>
+
+              <ProgressBar
+                currentStep={verificationStep}
+                totalSteps={totalSteps}
+              />
+
+              {verificationStep === 1 && (
+                <>
+                  <Text style={styles.questionText}>
+                    Select delivery apps you use:
+                  </Text>
+                  <View style={styles.appsContainer}>
+                    {deliveryApps.map((app) => (
+                      <TouchableOpacity
+                        key={app.id}
                         style={[
-                          styles.appButtonText,
+                          styles.appButton,
                           selectedApps.includes(app.id) &&
-                            styles.appButtonTextSelected,
+                            styles.appButtonSelected,
                         ]}
+                        onPress={() => toggleApp(app.id)}
                       >
-                        {app.name}
+                        <Text
+                          style={[
+                            styles.appButtonText,
+                            selectedApps.includes(app.id) &&
+                              styles.appButtonTextSelected,
+                          ]}
+                        >
+                          {app.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  {selectedApps.includes("others") && (
+                    <TextInput
+                      style={styles.otherAppInput}
+                      placeholder="Enter other delivery app name"
+                      value={otherAppName}
+                      onChangeText={(text) => {
+                        setOtherAppName(text);
+                        if (userId) {
+                          updateDoc(doc(db, "users_driver", userId), {
+                            otherAppName: text,
+                          });
+                        }
+                      }}
+                    />
+                  )}
+                  {selectedApps.includes("no_delivery") ? (
+                    <Text style={styles.errorText}>
+                      You cannot use this application
+                    </Text>
+                  ) : (
+                    <TouchableOpacity
+                      style={[
+                        styles.modalButton,
+                        (selectedApps.length === 0 ||
+                          (selectedApps.includes("others") && !otherAppName)) &&
+                          styles.modalButtonDisabled,
+                      ]}
+                      onPress={() => setVerificationStep(2)}
+                      disabled={
+                        selectedApps.length === 0 ||
+                        (selectedApps.includes("others") && !otherAppName) ||
+                        selectedApps.includes("no_delivery")
+                      }
+                    >
+                      <Text style={styles.modalButtonText}>Next</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              )}
+
+              {verificationStep === 2 && (
+                <>
+                  <Text style={styles.questionText}>
+                    Select your location and radius:
+                  </Text>
+                  <View style={styles.radiusContainer}>
+                    <Text>Delivery Radius (miles):</Text>
+                    <TextInput
+                      style={styles.radiusInput}
+                      value={radius}
+                      onChangeText={handleRadiusChange}
+                      keyboardType="numeric"
+                      placeholder="Enter radius (max 50)"
+                    />
+                  </View>
+                  <View style={styles.mapContainer}>
+                    <MapView
+                      ref={(ref) => setMapRef(ref)}
+                      provider={PROVIDER_GOOGLE}
+                      style={styles.map}
+                      initialRegion={
+                        initialRegion || {
+                          latitude: 37.78825,
+                          longitude: -122.4324,
+                          latitudeDelta: 0.0922,
+                          longitudeDelta: 0.0421,
+                        }
+                      }
+                      onPress={handleLocationSelect}
+                      showsUserLocation={true}
+                    >
+                      {savedLocation && (
+                        <>
+                          <Marker
+                            coordinate={{
+                              latitude: savedLocation.latitude,
+                              longitude: savedLocation.longitude,
+                            }}
+                            pinColor="red"
+                          />
+                          <Circle
+                            center={{
+                              latitude: savedLocation.latitude,
+                              longitude: savedLocation.longitude,
+                            }}
+                            radius={parseFloat(radius || "0") * 1609.34}
+                            strokeWidth={2}
+                            strokeColor="rgba(0, 122, 255, 1)"
+                            fillColor="rgba(0, 122, 255, 0.2)"
+                          />
+                        </>
+                      )}
+                    </MapView>
+                  </View>
+                  <View style={styles.buttonRow}>
+                    <TouchableOpacity
+                      style={styles.modalButton}
+                      onPress={() => setVerificationStep(1)}
+                    >
+                      <Text style={styles.modalButtonText}>Back</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.modalButton,
+                        (!savedLocation || !radius) && styles.modalButtonDisabled,
+                      ]}
+                      onPress={() => setVerificationStep(3)}
+                      disabled={!savedLocation || !radius}
+                    >
+                      <Text style={styles.modalButtonText}>Next</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+
+              {verificationStep === 3 && (
+                <>
+                  <Text style={styles.questionText}>Upload screenshots:</Text>
+                  <Text style={styles.termsText}>
+                    The screenshot must show your name matching your account and
+                    delivery statistics for the last 30 days
+                  </Text>
+                  <ScrollView style={styles.screenshotsContainer}>
+                    {screenshots.map((url, index) => (
+                      <View key={index} style={styles.screenshotContainer}>
+                        <Image source={{ uri: url }} style={styles.screenshot} />
+                        <TouchableOpacity
+                          style={styles.deleteButton}
+                          onPress={() => {
+                            const newScreenshots = screenshots.filter(
+                              (_, i) => i !== index
+                            );
+                            setScreenshots(newScreenshots);
+                            if (userId) {
+                              updateDoc(doc(db, "users_driver", userId), {
+                                screenshots: newScreenshots,
+                              });
+                            }
+                          }}
+                        >
+                          <Text style={styles.deleteButtonText}>×</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                    <TouchableOpacity
+                      style={styles.uploadButton}
+                      onPress={pickImage}
+                      disabled={uploading}
+                    >
+                      <Text style={styles.uploadButtonText}>
+                        {uploading ? "Uploading..." : "+ Add Screenshot"}
                       </Text>
                     </TouchableOpacity>
-                  ))}
-                </View>
-                {selectedApps.includes("others") && (
-                  <TextInput
-                    style={styles.otherAppInput}
-                    placeholder="Enter other delivery app name"
-                    value={otherAppName}
-                    onChangeText={(text) => {
-                      setOtherAppName(text);
-                      if (userId) {
-                        updateDoc(doc(db, "users_driver", userId), {
-                          otherAppName: text,
-                        });
-                      }
-                    }}
-                  />
-                )}
-                {selectedApps.includes("no_delivery") ? (
-                  <Text style={styles.errorText}>
-                    You cannot use this application
-                  </Text>
-                ) : (
-                  <TouchableOpacity
-                    style={[
-                      styles.modalButton,
-                      (selectedApps.length === 0 ||
-                        (selectedApps.includes("others") && !otherAppName)) &&
-                        styles.modalButtonDisabled,
-                    ]}
-                    onPress={() => setVerificationStep(2)}
-                    disabled={
-                      selectedApps.length === 0 ||
-                      (selectedApps.includes("others") && !otherAppName) ||
-                      selectedApps.includes("no_delivery")
-                    }
-                  >
-                    <Text style={styles.modalButtonText}>Next</Text>
-                  </TouchableOpacity>
-                )}
-              </>
-            )}
-
-            {verificationStep === 2 && (
-              <>
-                <Text style={styles.questionText}>
-                  Select your location and radius:
-                </Text>
-                <View style={styles.radiusContainer}>
-                  <Text>Delivery Radius (miles):</Text>
-                  <TextInput
-                    style={styles.radiusInput}
-                    value={radius}
-                    onChangeText={handleRadiusChange}
-                    keyboardType="numeric"
-                    placeholder="Enter radius (max 50)"
-                  />
-                </View>
-                <View style={styles.mapContainer}>
-                  <MapView
-                    ref={(ref) => setMapRef(ref)}
-                    provider={PROVIDER_GOOGLE}
-                    style={styles.map}
-                    initialRegion={
-                      initialRegion || {
-                        latitude: 37.78825,
-                        longitude: -122.4324,
-                        latitudeDelta: 0.0922,
-                        longitudeDelta: 0.0421,
-                      }
-                    }
-                    onPress={handleLocationSelect}
-                    showsUserLocation={true}
-                  >
-                    {savedLocation && (
-                      <>
-                        <Marker
-                          coordinate={{
-                            latitude: savedLocation.latitude,
-                            longitude: savedLocation.longitude,
-                          }}
-                          pinColor="red"
-                        />
-                        <Circle
-                          center={{
-                            latitude: savedLocation.latitude,
-                            longitude: savedLocation.longitude,
-                          }}
-                          radius={parseFloat(radius || "0") * 1609.34}
-                          strokeWidth={2}
-                          strokeColor="rgba(0, 122, 255, 1)"
-                          fillColor="rgba(0, 122, 255, 0.2)"
-                        />
-                      </>
-                    )}
-                  </MapView>
-                </View>
-                <View style={styles.buttonRow}>
-                  <TouchableOpacity
-                    style={styles.modalButton}
-                    onPress={() => setVerificationStep(1)}
-                  >
-                    <Text style={styles.modalButtonText}>Back</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.modalButton,
-                      (!savedLocation || !radius) && styles.modalButtonDisabled,
-                    ]}
-                    onPress={() => setVerificationStep(3)}
-                    disabled={!savedLocation || !radius}
-                  >
-                    <Text style={styles.modalButtonText}>Next</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-
-            {verificationStep === 3 && (
-              <>
-                <Text style={styles.questionText}>Upload screenshots:</Text>
-                <Text style={styles.termsText}>
-                  The screenshot must show your name matching your account and
-                  delivery statistics for the last 30 days
-                </Text>
-                <ScrollView style={styles.screenshotsContainer}>
-                  {screenshots.map((url, index) => (
-                    <View key={index} style={styles.screenshotContainer}>
-                      <Image source={{ uri: url }} style={styles.screenshot} />
-                      <TouchableOpacity
-                        style={styles.deleteButton}
-                        onPress={() => {
-                          const newScreenshots = screenshots.filter(
-                            (_, i) => i !== index
-                          );
-                          setScreenshots(newScreenshots);
-                          if (userId) {
-                            updateDoc(doc(db, "users_driver", userId), {
-                              screenshots: newScreenshots,
-                            });
-                          }
-                        }}
-                      >
-                        <Text style={styles.deleteButtonText}>×</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                  <TouchableOpacity
-                    style={styles.uploadButton}
-                    onPress={pickImage}
-                    disabled={uploading}
-                  >
-                    <Text style={styles.uploadButtonText}>
-                      {uploading ? "Uploading..." : "+ Add Screenshot"}
-                    </Text>
-                  </TouchableOpacity>
-                </ScrollView>
-                <View style={styles.buttonRow}>
-                  <TouchableOpacity
-                    style={styles.modalButton}
-                    onPress={() => setVerificationStep(2)}
-                  >
-                    <Text style={styles.modalButtonText}>Back</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.modalButton,
-                      screenshots.length === 0 && styles.modalButtonDisabled,
-                    ]}
-                    onPress={handleVerificationSubmit}
-                    disabled={screenshots.length === 0}
-                  >
-                    <Text style={styles.modalButtonText}>Submit</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-          </View>
-        </View>
-      )}
-      <View style={styles.avatarWrapper}>
-        {userData.avatar ? (
-          <Image
-            key={userData.avatar}
-            source={{ uri: userData.avatar }}
-            style={styles.avatar}
-          />
-        ) : (
-          <View style={styles.placeholder}>
-            <Text style={styles.placeholderText}>Avatar</Text>
+                  </ScrollView>
+                  <View style={styles.buttonRow}>
+                    <TouchableOpacity
+                      style={styles.modalButton}
+                      onPress={() => setVerificationStep(2)}
+                    >
+                      <Text style={styles.modalButtonText}>Back</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.modalButton,
+                        screenshots.length === 0 && styles.modalButtonDisabled,
+                      ]}
+                      onPress={handleVerificationSubmit}
+                      disabled={screenshots.length === 0}
+                    >
+                      <Text style={styles.modalButtonText}>Submit</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+            </View>
           </View>
         )}
-      </View>
-
-      {userRank && (
-        <View style={styles.rankContainer}>
-          <Text style={styles.rankText}>{userRank.name}</Text>
-          <Image source={{ uri: userRank.image }} style={styles.rankIcon} />
+        <View style={styles.avatarWrapper}>
+          {userData.avatar ? (
+            <Image
+              key={userData.avatar}
+              source={{ uri: userData.avatar }}
+              style={styles.avatar}
+            />
+          ) : (
+            <View style={styles.placeholder}>
+              <Text style={styles.placeholderText}>Avatar</Text>
+            </View>
+          )}
         </View>
-      )}
 
-      {userData.status === "pending" && (
-        <TouchableOpacity
-          style={styles.verificationButton}
-          onPress={() => setShowVerificationModal(true)}
-        >
-          <Text style={styles.verificationButtonText}>
-            Verification Status: Pending
-          </Text>
-        </TouchableOpacity>
-      )}
+        {userRank && (
+          <View style={styles.rankContainer}>
+            <Text style={styles.rankText}>{userRank.name}</Text>
+            <Image source={{ uri: userRank.image }} style={styles.rankIcon} />
+          </View>
+        )}
 
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => router.push("/(driver)/profile/settings")}
-      >
-        <Text style={styles.buttonText}>Settings</Text>
-      </TouchableOpacity>
+        {userData.status === "pending" && (
+          <GoldButton
+            title="Verification Status: Pending"
+            onPress={() => setShowVerificationModal(true)}
+            style={{ marginBottom: 8 }}
+          />
+        )}
 
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => router.push("/(driver)/profile/rewards")}
-      >
-        <Text style={styles.buttonText}>Rewards</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => router.push("/(driver)/profile/payments")}
-      >
-        <Text style={styles.buttonText}>Earnings</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => router.push("/(driver)/profile/support")}
-      >
-        <Text style={styles.buttonText}>Support</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => router.push("/(driver)/profile/location")}
-      >
-        <Text style={styles.buttonText}>Location</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => router.push("/(driver)/profile/location-google")}
-      >
-        <Text style={styles.buttonText}>Location Google</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.logOut} onPress={() => auth.signOut()}>
-        <Text style={styles.buttonText}>Log out</Text>
-      </TouchableOpacity>
+        <GoldButton
+          title="Settings"
+          onPress={() => router.push("/(driver)/profile/settings")}
+          style={{ marginVertical: -4 }}
+        />
+        <GoldButton
+          title="Rewards"
+          onPress={() => router.push("/(driver)/profile/rewards")}
+          style={{ marginVertical: -4 }}
+        />
+        <GoldButton
+          title="Earnings"
+          onPress={() => router.push("/(driver)/profile/payments")}
+          style={{ marginVertical: -4 }}
+        />
+        <GoldButton
+          title="Support"
+          onPress={() => router.push("/(driver)/profile/support")}
+          style={{ marginVertical: -4 }}
+        />
+        <GoldButton
+          title="Location"
+          onPress={() => router.push("/(driver)/profile/location")}
+          style={{ marginVertical: -4 }}
+        />
+        <GoldButton
+          title="Location Google"
+          onPress={() => router.push("/(driver)/profile/location-google")}
+          style={{ marginVertical: -4 }}
+        />
+        <GoldButton
+          title="Log out"
+          onPress={() => auth.signOut()}
+          style={{ marginVertical: -4 }}
+        />
+      </View>
     </View>
   );
 };
@@ -710,8 +713,11 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#fff",
     padding: 20,
+  },
+  background: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'transparent',
   },
   avatarWrapper: {
     width: 120,

@@ -5,6 +5,10 @@ import { SymbolWeight } from 'expo-symbols';
 import React from 'react';
 import { OpaqueColorValue, StyleProp, ViewStyle } from 'react-native';
 
+// Accent colors
+const ACCENT1_DARK = '#f1af07';
+const ACCENT2_LIGHT = '#7eedfa';
+
 // Add your SFSymbol to MaterialIcons mappings here.
 const MAPPING = {
   // See MaterialIcons here: https://icons.expo.fyi
@@ -16,7 +20,6 @@ const MAPPING = {
   'chevron.right': 'chevron-right',
   'person.fill': 'account-circle',
   'bag': 'shopping-bag',
-
 } as Partial<
   Record<
     import('expo-symbols').SymbolViewProps['name'],
@@ -36,12 +39,16 @@ export function IconSymbol({
   size = 24,
   color,
   style,
+  weight,
+  active = false,
 }: {
   name: IconSymbolName;
   size?: number;
-  color: string | OpaqueColorValue;
+  color?: string | OpaqueColorValue;
   style?: StyleProp<ViewStyle>;
   weight?: SymbolWeight;
+  active?: boolean;
 }) {
-  return <MaterialIcons color={color} size={size} name={MAPPING[name]} style={style} />;
+  const iconColor = active ? ACCENT2_LIGHT : (color || ACCENT1_DARK);
+  return <MaterialIcons color={iconColor} size={size} name={MAPPING[name]} style={style} />;
 }

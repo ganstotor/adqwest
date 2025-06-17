@@ -4,7 +4,7 @@ import { Platform, Alert } from "react-native";
 import { HapticTab } from "@/components/HapticTab";
 import { IconSymbol } from "@/components/ui/IconSymbol";
 import TabBarBackground from "@/components/ui/TabBarBackground";
-import { Colors } from "@/constants/Colors";
+import { Colors, ACCENT1_DARK, ACCENT2_LIGHT, BACKGROUND1_DARK_GRADIENT, BACKGROUND1_LIGHT } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import {
   doc,
@@ -227,17 +227,23 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
+        tabBarActiveTintColor: ACCENT2_LIGHT,
+        tabBarInactiveTintColor: ACCENT1_DARK,
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarBackground: TabBarBackground,
-        tabBarStyle: Platform.select({
-          ios: {
-            // Use a transparent background on iOS to show the blur effect
-            position: "absolute",
+        tabBarStyle: [
+          Platform.select({
+            ios: {
+              position: "absolute",
+            },
+            default: {},
+          }),
+          {
+            backgroundColor: BACKGROUND1_LIGHT,
+            // Если нужен градиент, можно использовать кастомный компонент TabBarBackground
           },
-          default: {},
-        }),
+        ],
         tabBarItemStyle: {
           opacity: userStatus !== "active" ? 0.5 : 1,
         },

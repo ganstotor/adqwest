@@ -20,6 +20,10 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { db } from "../../../firebaseConfig";
+import Typography from '../../../components/ui/Typography';
+import GoldButton from '../../../components/ui/GoldButton';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import { ACCENT1_LIGHT, ACCENT2_LIGHT, BACKGROUND1_LIGHT, WHITE } from '../../../constants/Colors';
 
 interface Payment {
   id: string;
@@ -176,76 +180,74 @@ export default function PaymentsScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Payment Info</Text>
+    <View style={{ flex: 1 }}>
+      <Svg height="100%" width="100%" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: -1 }}>
+        <Defs>
+          <LinearGradient id="bgGradient" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0%" stopColor="#02010C" />
+            <Stop offset="100%" stopColor="#08061A" />
+          </LinearGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#bgGradient)" />
+      </Svg>
 
-      <View style={styles.earningsBox}>
-        <Text style={styles.earningsLabel}>Total Earnings</Text>
-        <Text style={styles.earningsValue}>$ {earnings.toFixed(2)}</Text>
-        <Text style={styles.potentialText}>
-          Potential: $ {potentialEarnings.toFixed(2)}
-        </Text>
-      </View>
+      <View style={styles.container}>
+        <Typography variant="h4" style={styles.title}>Payment Info</Typography>
 
-      <View style={styles.stripeSection}>
-        {stripeConnected ? (
-          <View>
-            <View style={styles.connectedStatus}>
-              <Text style={styles.connectedText}>✓ Connected to Stripe</Text>
-            </View>
-            {stripeRestricted && (
-              <View style={styles.warningBox}>
-                <Text style={styles.warningText}>
-                  Your Stripe account is connected but not fully verified. You
-                  won't be able to receive payouts until verification is
-                  complete.
-                </Text>
-                <TouchableOpacity
-                  style={styles.verifyButton}
-                  onPress={handleStripeConnect}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <ActivityIndicator size="small" color="#ffffff" />
-                  ) : (
-                    <Text style={styles.verifyButtonText}>
-                      Complete Verification
-                    </Text>
-                  )}
-                </TouchableOpacity>
+        <View style={styles.earningsBox}>
+          <Typography variant="body2" style={styles.earningsLabel}>Total Earnings</Typography>
+          <Typography variant="h2" style={styles.earningsValue}>$ {earnings.toFixed(2)}</Typography>
+          <Typography variant="caption" style={styles.potentialText}>
+            Potential: $ {potentialEarnings.toFixed(2)}
+          </Typography>
+        </View>
+
+        <View style={styles.stripeSection}>
+          {stripeConnected ? (
+            <View>
+              <View style={styles.connectedStatus}>
+                <Typography variant="body2" style={styles.connectedText}>✓ Connected to Stripe</Typography>
               </View>
-            )}
-          </View>
-        ) : (
-          <TouchableOpacity
-            style={styles.connectButton}
-            onPress={handleStripeConnect}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color="#ffffff" />
-            ) : (
-              <Text style={styles.connectButtonText}>
-                Connect Stripe Account
-              </Text>
-            )}
-          </TouchableOpacity>
-        )}
-      </View>
+              {stripeRestricted && (
+                <View style={styles.warningBox}>
+                  <Typography variant="body2" style={styles.warningText}>
+                    Your Stripe account is connected but not fully verified. You
+                    won't be able to receive payouts until verification is
+                    complete.
+                  </Typography>
+                  <GoldButton
+                    title={loading ? "Loading..." : "Complete Verification"}
+                    onPress={handleStripeConnect}
+                    style={styles.verifyButton}
+                  />
+                </View>
+              )}
+            </View>
+          ) : (
+            <GoldButton
+              title={loading ? "Loading..." : "Connect Stripe Account"}
+              onPress={handleStripeConnect}
+              style={styles.connectButton}
+            />
+          )}
+        </View>
 
-      <Text style={styles.subTitle}>Payment History</Text>
-      <FlatList
-        data={payments}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: 100 }}
-        renderItem={({ item }) => (
-          <View style={styles.paymentItem}>
-            <Text style={styles.paymentAmount}>$ {item.amount.toFixed(2)}</Text>
-            <Text style={styles.paymentDate}>Date: {item.date}</Text>
-          </View>
-        )}
-        ListEmptyComponent={<Text style={styles.empty}>No payments yet.</Text>}
-      />
+        <Typography variant="h5" style={styles.subTitle}>Payment History</Typography>
+        <FlatList
+          data={payments}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{ paddingBottom: 100 }}
+          renderItem={({ item }) => (
+            <View style={styles.paymentItem}>
+              <Typography variant="h6" style={styles.paymentAmount}>$ {item.amount.toFixed(2)}</Typography>
+              <Typography variant="body2" style={styles.paymentDate}>Date: {item.date}</Typography>
+            </View>
+          )}
+          ListEmptyComponent={
+            <Typography variant="body2" style={styles.empty}>No payments yet.</Typography>
+          }
+        />
+      </View>
     </View>
   );
 }
@@ -254,106 +256,88 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: "#fff",
+    backgroundColor: 'transparent',
   },
   title: {
-    fontSize: 22,
-    fontWeight: "bold",
+    color: WHITE,
     marginBottom: 15,
   },
   subTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
+    color: WHITE,
     marginTop: 30,
     marginBottom: 10,
   },
   earningsBox: {
     padding: 15,
     borderRadius: 10,
-    backgroundColor: "#f1f1f1",
+    backgroundColor: BACKGROUND1_LIGHT,
     alignItems: "center",
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: ACCENT2_LIGHT,
   },
   earningsLabel: {
-    fontSize: 16,
-    color: "#666",
+    color: WHITE,
   },
   earningsValue: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#00aa00",
+    color: ACCENT1_LIGHT,
   },
   paymentItem: {
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: ACCENT2_LIGHT,
+    backgroundColor: BACKGROUND1_LIGHT,
+    borderRadius: 10,
+    marginBottom: 10,
   },
   paymentAmount: {
-    fontSize: 16,
-    fontWeight: "bold",
+    color: ACCENT1_LIGHT,
   },
   paymentDate: {
-    fontSize: 14,
-    color: "#666",
+    color: WHITE,
   },
   empty: {
     textAlign: "center",
     marginTop: 20,
-    color: "#999",
+    color: WHITE,
   },
   potentialText: {
-    fontSize: 13,
-    color: "#666",
+    color: WHITE,
     marginTop: 4,
   },
   stripeSection: {
     marginVertical: 15,
     padding: 15,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: BACKGROUND1_LIGHT,
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: ACCENT2_LIGHT,
   },
   connectedStatus: {
     padding: 10,
-    backgroundColor: "#e8f5e9",
+    backgroundColor: ACCENT2_LIGHT,
     borderRadius: 8,
     alignItems: "center",
   },
   connectedText: {
-    color: "#2e7d32",
-    fontWeight: "bold",
-  },
-  connectButton: {
-    backgroundColor: "#6772e5",
-    padding: 15,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  connectButtonText: {
-    color: "#ffffff",
-    fontWeight: "bold",
-    fontSize: 16,
+    color: BACKGROUND1_LIGHT,
   },
   warningBox: {
     marginTop: 10,
     padding: 12,
-    backgroundColor: "#fff3cd",
+    backgroundColor: BACKGROUND1_LIGHT,
     borderRadius: 8,
-    borderColor: "#ffeeba",
+    borderColor: ACCENT1_LIGHT,
     borderWidth: 1,
   },
   warningText: {
-    color: "#856404",
-    fontSize: 14,
+    color: WHITE,
     marginBottom: 10,
   },
   verifyButton: {
-    backgroundColor: "#ff9900",
-    padding: 12,
-    borderRadius: 8,
-    alignItems: "center",
+    marginTop: 10,
   },
-  verifyButtonText: {
-    color: "#fff",
-    fontWeight: "bold",
+  connectButton: {
+    marginTop: 10,
   },
 });

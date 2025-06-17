@@ -16,13 +16,15 @@ import { doc, setDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import { auth, db } from "../../../firebaseConfig";
 import Icon from "react-native-vector-icons/Ionicons";
 import * as Location from "expo-location";
-
 import {
   haversineDistance,
   getStateFromCoords,
   findNearbyStates,
 } from "../../../utils/geo";
 import { getBoundingRegion } from "../../../utils/mapUtils";
+import Typography from '../../../components/ui/Typography';
+import GoldButton from '../../../components/ui/GoldButton';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import type {
   Feature,
@@ -348,7 +350,16 @@ export default function ZipMapScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={{ flex: 1 }}>
+      <Svg height="100%" width="100%" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: -1 }}>
+        <Defs>
+          <LinearGradient id="bgGradient" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0%" stopColor="#02010C" />
+            <Stop offset="100%" stopColor="#08061A" />
+          </LinearGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#bgGradient)" />
+      </Svg>
       {showPopup && (
         <View style={styles.popup}>
           <View
@@ -374,17 +385,7 @@ export default function ZipMapScreen() {
               }}
               keyboardType="numeric"
             />
-            <TouchableOpacity
-              style={{
-                backgroundColor: "#007BFF",
-                padding: 8,
-                marginLeft: 10,
-                borderRadius: 5,
-              }}
-              onPress={saveRadiusToFirestore}
-            >
-              <Text style={{ color: "white" }}>Apply</Text>
-            </TouchableOpacity>
+            <GoldButton title="Save" onPress={saveRadiusToFirestore} style={{ marginVertical: 12 }} />
           </View>
           <View style={styles.inputRow}>
             <TextInput
@@ -394,7 +395,7 @@ export default function ZipMapScreen() {
               onChangeText={setZipInput}
               keyboardType="numeric"
             />
-            <Button title="Add" onPress={handleAddZip} />
+            <GoldButton title="Add" onPress={handleAddZip} />
           </View>
           <View style={styles.zipScrollList}>
             <ScrollView
@@ -426,35 +427,22 @@ export default function ZipMapScreen() {
           marginBottom: 10,
         }}
       >
-        <TouchableOpacity
-          style={styles.smallButton}
+        <GoldButton
+          title="Clear"
           onPress={async () => {
             setSavedZips([]);
-            setFeatures([]);
-            setInitialLocation(null);
-            if (user) {
-              const ref = doc(db, "users_driver", user.uid);
-              await setDoc(
-                ref,
-                {
-                  location: null,
-                  zipCodes: [],
-                },
-                { merge: true }
-              );
-            }
+            await updateFirestoreZips([]);
           }}
-        >
-          <Text style={styles.smallButtonText}>Clear</Text>
-        </TouchableOpacity>
+          style={{ marginVertical: 0, alignSelf: 'flex-start'}}
+        />
         <TouchableOpacity
-          style={styles.iconButton}
+          style={{ marginLeft: 8, justifyContent: 'center', alignItems: 'center' }}
           onPress={() => setShowPopup(!showPopup)}
         >
           <Icon
             name={showPopup ? "close" : "options"}
             size={30}
-            color="#007BFF"
+            color="#FDEA35"
           />
         </TouchableOpacity>
       </View>
