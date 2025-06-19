@@ -9,6 +9,7 @@ import {
   Image,
 } from "react-native";
 import { Link } from "expo-router";
+import BurgerMenu from "../../../components/ui/BurgerMenu";
 import { getAuth } from "firebase/auth";
 import {
   getFirestore,
@@ -124,6 +125,35 @@ const OrderBagsScreen = () => {
     return () => unsubscribe();
   }, [userZipStrings, userStates]);
 
+  const handleOrderBags = (campaign: any) => {
+    router.push(
+      `/available-qwests/order-bags?campaignId=${campaign.id}&userAdId=${campaign.userAdId}`
+    );
+  };
+
+  const handleNavigation = (route: string) => {
+    switch (route) {
+      case 'home':
+        router.push('/(driver)/home');
+        break;
+      case 'my-qwests':
+        router.push('/(driver)/my-qwests');
+        break;
+      case 'profile':
+        router.push('/(driver)/profile');
+        break;
+      case 'rewards':
+        router.push('/(driver)/profile/rewards');
+        break;
+      case 'logout':
+        // Обработка выхода
+        router.replace('/');
+        break;
+      default:
+        break;
+    }
+  };
+
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
@@ -132,96 +162,95 @@ const OrderBagsScreen = () => {
     );
   }
 
-  const handleOrderBags = (campaign: any) => {
-    router.push(
-      `/available-qwests/order-bags?campaignId=${campaign.id}&userAdId=${campaign.userAdId}`
-    );
-  };
-
   return (
-    <View style={{ padding: 20 }}>
-      {campaigns.length > 0 ? (
-        <>
-          <Text style={{ fontSize: 20, fontWeight: "bold", marginBottom: 10 }}>
-            Good news! There are available campaigns in your preferred areas.
-            Choose one and order bags.
-          </Text>
+    <View style={{ flex: 1 }}>
+      <View style={{ padding: 20, flex: 1 }}>
+        {campaigns.length > 0 ? (
+          <>
+            <Text style={{ fontSize: 20, fontWeight: "bold", marginBottom: 10 }}>
+              Good news! There are available campaigns in your preferred areas.
+              Choose one and order bags.
+            </Text>
 
-          <FlatList
-            data={campaigns}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                onPress={() => handleOrderBags(item)}
-                style={{
-                  padding: 10,
-                  borderWidth: 1,
-                  borderRadius: 8,
-                  marginBottom: 10,
-                  backgroundColor: "#f9f9f9",
-                }}
-              >
-                {item.logo && (
-                  <Image
-                    source={{ uri: item.logo }}
-                    style={{
-                      width: 80,
-                      height: 80,
-                      resizeMode: "contain",
-                      marginBottom: 10,
-                    }}
-                  />
-                )}
-                {item.companyName && (
-                  <Text
-                    style={{ fontSize: 16, fontWeight: "700", marginBottom: 5 }}
-                  >
-                    {item.companyName}
-                  </Text>
-                )}
-                {typeof item.remainingBags === "number" &&
-                  typeof item.bagsCount === "number" && (
-                    <Text style={{ marginBottom: 5 }}>
-                      Remaining bags: {item.remainingBags} / {item.bagsCount}
+            <FlatList
+              data={campaigns}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  onPress={() => handleOrderBags(item)}
+                  style={{
+                    padding: 10,
+                    borderWidth: 1,
+                    borderRadius: 8,
+                    marginBottom: 10,
+                    backgroundColor: "#f9f9f9",
+                  }}
+                >
+                  {item.logo && (
+                    <Image
+                      source={{ uri: item.logo }}
+                      style={{
+                        width: 80,
+                        height: 80,
+                        resizeMode: "contain",
+                        marginBottom: 10,
+                      }}
+                    />
+                  )}
+                  {item.companyName && (
+                    <Text
+                      style={{ fontSize: 16, fontWeight: "700", marginBottom: 5 }}
+                    >
+                      {item.companyName}
                     </Text>
                   )}
-                <Text>
-                  Area:{" "}
-                  {item.nation
-                    ? "Nationwide"
-                    : item.states?.length
-                    ? item.states.join(", ")
-                    : item.zipCodes?.length
-                    ? item.zipCodes.join(", ")
-                    : "Unknown"}
-                </Text>
-              </TouchableOpacity>
-            )}
-          />
-        </>
-      ) : (
-        <View>
-          <Text style={{ fontSize: 20, fontWeight: "bold", marginBottom: 10 }}>
-            There are no campaigns available in your area yet.
-          </Text>
-          <Text style={{ marginBottom: 5 }}>Don't you worry!</Text>
-          <Text style={{ marginBottom: 15 }}>
-            We're coming to your area soon! :)
-          </Text>
-          <TouchableOpacity
-            style={{
-              padding: 10,
-              backgroundColor: "#007aff",
-              borderRadius: 6,
-            }}
-            onPress={() => router.push("/(driver)/profile/location")}
-          >
-            <Text style={{ color: "white", textAlign: "center" }}>
-              Would you like to choose a different area?
+                  {typeof item.remainingBags === "number" &&
+                    typeof item.bagsCount === "number" && (
+                      <Text style={{ marginBottom: 5 }}>
+                        Remaining bags: {item.remainingBags} / {item.bagsCount}
+                      </Text>
+                    )}
+                  <Text>
+                    Area:{" "}
+                    {item.nation
+                      ? "Nationwide"
+                      : item.states?.length
+                      ? item.states.join(", ")
+                      : item.zipCodes?.length
+                      ? item.zipCodes.join(", ")
+                      : "Unknown"}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            />
+          </>
+        ) : (
+          <View>
+            <Text style={{ fontSize: 20, fontWeight: "bold", marginBottom: 10 }}>
+              There are no campaigns available in your area yet.
             </Text>
-          </TouchableOpacity>
-        </View>
-      )}
+            <Text style={{ marginBottom: 5 }}>Don't you worry!</Text>
+            <Text style={{ marginBottom: 15 }}>
+              We're coming to your area soon! :)
+            </Text>
+            <TouchableOpacity
+              style={{
+                padding: 10,
+                backgroundColor: "#007aff",
+                borderRadius: 6,
+              }}
+              onPress={() => router.push("/(driver)/profile/location")}
+            >
+              <Text style={{ color: "white", textAlign: "center" }}>
+                Would you like to choose a different area?
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+      
+      {/* BurgerMenu внизу */}
+      <BurgerMenu onNavigate={handleNavigation} />
     </View>
   );
 };

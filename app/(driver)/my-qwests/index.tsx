@@ -10,6 +10,7 @@ import {
   ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
+import BurgerMenu from "../../../components/ui/BurgerMenu";
 import { getAuth } from "firebase/auth";
 import {
   getFirestore,
@@ -188,98 +189,126 @@ const MainPage: React.FC = () => {
     });
   };
 
-  return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Already have a case? Click "Scan Case"</Text>
-      <View style={styles.topButtons}>
-        <TouchableOpacity
-          style={[styles.button, { backgroundColor: "#90EE90" }]}
-          onPress={handleScanCase}
-        >
-          <Text style={styles.buttonText}>Scan Case</Text>
-        </TouchableOpacity>
-      </View>
+  const handleNavigation = (route: string) => {
+    switch (route) {
+      case 'home':
+        router.push('/(driver)/home');
+        break;
+      case 'my-qwests':
+        router.push('/(driver)/my-qwests');
+        break;
+      case 'profile':
+        router.push('/(driver)/profile');
+        break;
+      case 'rewards':
+        router.push('/(driver)/profile/rewards');
+        break;
+      case 'logout':
+        // Обработка выхода
+        router.replace('/');
+        break;
+      default:
+        break;
+    }
+  };
 
-      {driverCampaigns.length === 0 ? (
-        <View style={styles.emptyStateContainer}>
-          <Text style={styles.emptyStateText}>Don't have a case yet? Click "Order Bags"</Text>
+  return (
+    <View style={{ flex: 1 }}>
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.title}>Already have a case? Click "Scan Case"</Text>
+        <View style={styles.topButtons}>
           <TouchableOpacity
-            style={styles.orderBagsButton}
-            onPress={() => router.push("/(driver)/available-qwests")}
+            style={[styles.button, { backgroundColor: "#90EE90" }]}
+            onPress={handleScanCase}
           >
-            <Text style={styles.orderBagsButtonText}>Order Bags</Text>
+            <Text style={styles.buttonText}>Scan Case</Text>
           </TouchableOpacity>
         </View>
-      ) : (
-        <>
-          <Text style={styles.sectionTitle}>Your Campaigns:</Text>
-          {Object.entries(groupedCampaigns).map(([campaignId, group]) => (
-            <View key={campaignId} style={styles.card}>
-              <View style={styles.campaignHeader}>
-                <Image source={{ uri: group.logo }} style={styles.logo} />
-                <View style={styles.campaignInfo}>
-                  <Text style={styles.text}>
-                    <Text style={styles.label}>Company:</Text> {group.companyName}
-                  </Text>
-                  <Text style={styles.text}>
-                    <Text style={styles.label}>Area:</Text>{" "}
-                    {group.states.join(", ")}
-                  </Text>
-                  <Text style={styles.text}>
-                    <Text style={styles.label}>Start:</Text> {group.startDate}
-                  </Text>
-                  <Text style={styles.text}>
-                    <Text style={styles.label}>End:</Text> {group.endDate}
-                  </Text>
+
+        {driverCampaigns.length === 0 ? (
+          <View style={styles.emptyStateContainer}>
+            <Text style={styles.emptyStateText}>Don't have a case yet? Click "Order Bags"</Text>
+            <TouchableOpacity
+              style={styles.orderBagsButton}
+              onPress={() => router.push("/(driver)/available-qwests")}
+            >
+              <Text style={styles.orderBagsButtonText}>Order Bags</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            <Text style={styles.sectionTitle}>Your Campaigns:</Text>
+            {Object.entries(groupedCampaigns).map(([campaignId, group]) => (
+              <View key={campaignId} style={styles.card}>
+                <View style={styles.campaignHeader}>
+                  <Image source={{ uri: group.logo }} style={styles.logo} />
+                  <View style={styles.campaignInfo}>
+                    <Text style={styles.text}>
+                      <Text style={styles.label}>Company:</Text> {group.companyName}
+                    </Text>
+                    <Text style={styles.text}>
+                      <Text style={styles.label}>Area:</Text>{" "}
+                      {group.states.join(", ")}
+                    </Text>
+                    <Text style={styles.text}>
+                      <Text style={styles.label}>Start:</Text> {group.startDate}
+                    </Text>
+                    <Text style={styles.text}>
+                      <Text style={styles.label}>End:</Text> {group.endDate}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-              <Text style={styles.caseText}>Cases</Text>
-              {/* ❗️ Теперь ниже — driver_campaigns */}
-              {group.campaigns.map((campaign, idx) => (
-                <View key={campaign.id}>
-                  <View style={styles.driverCampaignRow}>
-                    <View style={styles.driverInfo}>
-                      <Text style={styles.text}>
-                        <Text style={styles.label}>Status:</Text> {campaign.status}
-                      </Text>
-                      <Text style={styles.text}>
-                        <Text style={styles.label}>Bags delivered:</Text>{" "}
-                        {campaign.bagsDelivered}/{campaign.bagsCount}
-                      </Text>
-                    </View>
-                    <View style={styles.driverButtons}>
-                      {campaign.status !== "on the way" && (
+                <Text style={styles.caseText}>Cases</Text>
+                {/* ❗️ Теперь ниже — driver_campaigns */}
+                {group.campaigns.map((campaign, idx) => (
+                  <View key={campaign.id}>
+                    <View style={styles.driverCampaignRow}>
+                      <View style={styles.driverInfo}>
+                        <Text style={styles.text}>
+                          <Text style={styles.label}>Status:</Text> {campaign.status}
+                        </Text>
+                        <Text style={styles.text}>
+                          <Text style={styles.label}>Bags delivered:</Text>{" "}
+                          {campaign.bagsDelivered}/{campaign.bagsCount}
+                        </Text>
+                      </View>
+                      <View style={styles.driverButtons}>
+                        {campaign.status !== "on the way" && (
+                          <TouchableOpacity
+                            onPress={() => handleViewMissions(campaign.id)}
+                            style={[
+                              styles.missionButton,
+                              { backgroundColor: "#007AFF" },
+                            ]}
+                          >
+                            <Text style={styles.missionText}>📦 View Missions</Text>
+                          </TouchableOpacity>
+                        )}
                         <TouchableOpacity
-                          onPress={() => handleViewMissions(campaign.id)}
+                          onPress={() => handleDriverCampaignDetails(campaign)}
                           style={[
                             styles.missionButton,
-                            { backgroundColor: "#007AFF" },
+                            { backgroundColor: "#FFA500" },
                           ]}
                         >
-                          <Text style={styles.missionText}>📦 View Missions</Text>
+                          <Text style={styles.missionText}>📋 View Campaign</Text>
                         </TouchableOpacity>
-                      )}
-                      <TouchableOpacity
-                        onPress={() => handleDriverCampaignDetails(campaign)}
-                        style={[
-                          styles.missionButton,
-                          { backgroundColor: "#FFA500" },
-                        ]}
-                      >
-                        <Text style={styles.missionText}>📋 View Campaign</Text>
-                      </TouchableOpacity>
+                      </View>
                     </View>
+                    {idx !== group.campaigns.length - 1 && (
+                      <View style={styles.divider} />
+                    )}
                   </View>
-                  {idx !== group.campaigns.length - 1 && (
-                    <View style={styles.divider} />
-                  )}
-                </View>
-              ))}
-            </View>
-          ))}
-        </>
-      )}
-    </ScrollView>
+                ))}
+              </View>
+            ))}
+          </>
+        )}
+      </ScrollView>
+      
+      {/* BurgerMenu внизу */}
+      <BurgerMenu onNavigate={handleNavigation} />
+    </View>
   );
 };
 

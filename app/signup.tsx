@@ -63,7 +63,7 @@ export default function AuthScreen() {
         await setDoc(userDocRef, {
           email: user.email,
           name: name,
-          rank: "Recruit",
+          rank: "Page",
           completedMissionsCount: 0,
           uncompletedMissionsCount: 0,
           failedMissionsCount: 0,
@@ -72,7 +72,7 @@ export default function AuthScreen() {
           activationPopupShown: false,
         });
 
-        router.push("/(driver)/profile");
+        router.replace("/(driver)/home");
       } else {
         const userCredential = await signInWithEmailAndPassword(
           auth,
@@ -87,13 +87,7 @@ export default function AuthScreen() {
         if (userDocSnap.exists()) {
           const userData = userDocSnap.data();
 
-          if (userData.activationPopupShown) {
-            router.push("/(driver)/profile");
-          } else if (userData.status === "active") {
-            router.push("/(driver)/my-qwests");
-          } else {
-            router.push("/(driver)/profile");
-          }
+          router.replace("/(driver)/home");
         } else {
           alert("User data not found in users_driver collection.");
         }
@@ -108,7 +102,7 @@ export default function AuthScreen() {
   const handleQuickLogin = async () => {
     try {
       await signInWithEmailAndPassword(auth, "alex@mail.com", "123321");
-      router.push("/(driver)/profile" as any);
+      router.replace("/(driver)/home");
     } catch (error: any) {
       alert(`Quick login failed: ${error.message}`);
     }
@@ -161,17 +155,11 @@ export default function AuthScreen() {
           activationPopupShown: false,
         });
         console.log('New user document created');
-        router.push("/(driver)/profile");
+        router.replace("/(driver)/home");
       } else {
         const userData = userDocSnap.data();
         console.log('Existing user data:', userData);
-        if (userData.activationPopupShown) {
-          router.push("/(driver)/profile");
-        } else if (userData.status === "active") {
-          router.push("/(driver)/my-qwests");
-        } else {
-          router.push("/(driver)/profile");
-        }
+        router.replace("/(driver)/home");
       }
     } catch (error: any) {
       console.error('Google Sign-In Error Details:', {

@@ -1,9 +1,7 @@
-import { Tabs } from "expo-router";
+import { Stack } from "expo-router";
 import React, { useEffect, useState, useRef } from "react";
 import { Platform, Alert } from "react-native";
-import { HapticTab } from "@/components/HapticTab";
-import { IconSymbol } from "@/components/ui/IconSymbol";
-import TabBarBackground from "@/components/ui/TabBarBackground";
+import BurgerMenu from "@/components/ui/BurgerMenu";
 import { Colors, ACCENT1_DARK, ACCENT2_LIGHT, BACKGROUND1_DARK_GRADIENT, BACKGROUND1_LIGHT } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import {
@@ -24,7 +22,7 @@ import {
 } from "@/utils/notifications";
 import * as Notifications from "expo-notifications";
 
-export default function TabLayout() {
+export default function DriverLayout() {
   const colorScheme = useColorScheme();
   const [userStatus, setUserStatus] = useState<string | null>(null);
   const previousStatusRef = useRef<string | null>(null);
@@ -225,79 +223,38 @@ export default function TabLayout() {
   }, []);
 
   return (
-    <Tabs
+    <Stack
       screenOptions={{
-        tabBarActiveTintColor: ACCENT2_LIGHT,
-        tabBarInactiveTintColor: ACCENT1_DARK,
         headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarBackground: TabBarBackground,
-        tabBarStyle: [
-          Platform.select({
-            ios: {
-              position: "absolute",
-            },
-            default: {},
-          }),
-          {
-            backgroundColor: BACKGROUND1_LIGHT,
-            // Если нужен градиент, можно использовать кастомный компонент TabBarBackground
-          },
-        ],
-        tabBarItemStyle: {
-          opacity: userStatus !== "active" ? 0.5 : 1,
+        contentStyle: {
+          backgroundColor: BACKGROUND1_LIGHT,
         },
       }}
     >
-      <Tabs.Screen
+      <Stack.Screen
+        name="home"
+        options={{
+          title: "Home",
+        }}
+      />
+      <Stack.Screen
         name="my-qwests"
         options={{
           title: "My Qwests",
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="bag" color={color} />
-          ),
-          tabBarButton: (props) => (
-            <HapticTab
-              {...props}
-              onPress={(e) => {
-                if (userStatus !== "active") {
-                  return;
-                }
-                props.onPress?.(e);
-              }}
-            />
-          ),
         }}
       />
-      <Tabs.Screen
+      <Stack.Screen
         name="available-qwests"
         options={{
           title: "Available Qwests",
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="paperplane.fill" color={color} />
-          ),
-          tabBarButton: (props) => (
-            <HapticTab
-              {...props}
-              onPress={(e) => {
-                if (userStatus !== "active") {
-                  return;
-                }
-                props.onPress?.(e);
-              }}
-            />
-          ),
         }}
       />
-      <Tabs.Screen
+      <Stack.Screen
         name="profile"
         options={{
           title: "Profile",
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="person.fill" color={color} />
-          ),
         }}
       />
-    </Tabs>
+    </Stack>
   );
 }

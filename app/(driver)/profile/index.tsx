@@ -11,6 +11,7 @@ import {
   TextInput,
 } from "react-native";
 import { useRouter } from "expo-router";
+import BurgerMenu from '../../../components/ui/BurgerMenu';
 import { auth, db } from "../../../firebaseConfig";
 import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
@@ -389,6 +390,29 @@ const ProfileScreen = () => {
     }
   };
 
+  const handleNavigation = (route: string) => {
+    switch (route) {
+      case 'home':
+        router.push('/(driver)/home');
+        break;
+      case 'my-qwests':
+        router.push('/(driver)/my-qwests');
+        break;
+      case 'profile':
+        router.push('/(driver)/profile');
+        break;
+      case 'rewards':
+        router.push('/(driver)/profile/rewards');
+        break;
+      case 'logout':
+        // Обработка выхода
+        router.replace('/');
+        break;
+      default:
+        break;
+    }
+  };
+
   if (loading || !userData) {
     return (
       <View style={styles.container}>
@@ -704,6 +728,9 @@ const ProfileScreen = () => {
           style={{ marginVertical: -4 }}
         />
       </View>
+      
+      {/* BurgerMenu внизу */}
+      <BurgerMenu onNavigate={handleNavigation} />
     </View>
   );
 };

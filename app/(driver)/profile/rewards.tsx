@@ -8,56 +8,14 @@ import Typography from '../../../components/ui/Typography';
 import GoldButton from '../../../components/ui/GoldButton';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { Colors, ACCENT1_LIGHT, ACCENT2_LIGHT, BACKGROUND1_LIGHT, WHITE } from '../../../constants/Colors';
-
-const ranks = [
-  {
-    name: "Recruit",
-    minBags: 0,
-    maxBags: 499,
-    failedLimit: Infinity,
-    bagLimit: 50,
-    restrictions: "Cannot order more bags until current operation is completed successfully.",
-    perks: "Cannot order more bags until current operation is completed successfully.",
-    image: "https://49f19303af27fa52649830f7470cda8c.cdn.bubble.io/f1745483287099x211019496407986780/Sergeant.png",
-  },
-  {
-    name: "Sergeant",
-    minBags: 500,
-    maxBags: 999,
-    failedLimit: 20,
-    bagLimit: 100,
-    perks: "Can order more bags before completing the current operation.",
-    requirements: "No more than 10 failed missions in the last 100 missions.",
-    image: "https://49f19303af27fa52649830f7470cda8c.cdn.bubble.io/f1744632963112x260922741835636360/chevron.png",
-  },
-  {
-    name: "Captain",
-    minBags: 1000,
-    maxBags: 4999,
-    failedLimit: 5,
-    bagLimit: 200,
-    perks: "Unlocks mission bonuses.",
-    requirements: "No more than 5 failed missions in the last 100 missions.",
-    image: "https://49f19303af27fa52649830f7470cda8c.cdn.bubble.io/f1745483312916x330002207663850050/Captain.png",
-  },
-  {
-    name: "General",
-    minBags: 5000,
-    maxBags: Infinity,
-    failedLimit: 5,
-    bagLimit: 500,
-    perks: "Gains access to the distribution program.",
-    requirements: "No more than 5 failed missions in the last 100 missions.",
-    image: "https://49f19303af27fa52649830f7470cda8c.cdn.bubble.io/f1745485247401x540054289440982100/general.png",
-  }
-];
+import { ranks } from '../../../constants/ranks';
 
 const RewardsScreen: React.FC = () => {
   const [completedMissions, setCompletedMissions] = useState<number>(0);
   const [failedMissions, setFailedMissions] = useState<number>(0);
   const [rank, setRank] = useState<string>('Recruit');
   const [nextRank, setNextRank] = useState<string>('Sergeant');
-  const [rankImage, setRankImage] = useState<string | null>(null);
+  const [rankImage, setRankImage] = useState<any>(null);
   const [tooltipVisible, setTooltipVisible] = useState<null | string>(null);
 
   const targetMissions = ranks.find(r => r.name === nextRank)?.minBags || 1;
@@ -143,7 +101,7 @@ const RewardsScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
         {rankImage && (
-          <Image source={{ uri: rankImage }} style={styles.rankImage} />
+          <Image source={rankImage} style={styles.rankImage} />
         )}
         {renderTooltip(rank)}
         {nextRank !== "Max Rank" ? (
@@ -154,7 +112,7 @@ const RewardsScreen: React.FC = () => {
             <View style={styles.rankRow}>
               <Typography variant="h5" style={styles.rank}>{nextRank}</Typography>
               {nextRankImage && (
-                <Image source={{ uri: nextRankImage }} style={styles.nextRankImage} />
+                <Image source={nextRankImage} style={styles.nextRankImage} />
               )}
               <TouchableOpacity onPress={() => openTooltip(nextRank)}>
                 <Ionicons name="help-circle-outline" size={20} color="#FDEA35" />
