@@ -34,7 +34,7 @@ export const ranks = [
         minBags: 5000,
         maxBags: Infinity,
         failedLimit: 5,
-        bagLimit: 250,
+        bagLimit: 200,
         perks: "Gains access to the distribution program.",
         requirements: "No more than 5 failed missions in the last 100 missions.",
         image: require('../assets/images/avatars/lord-avatar.png'),

@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
+import { View, Text, Image, StyleSheet, Dimensions, ActivityIndicator, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import AvatarFrame from '../../components/ui/AvatarFrame';
 import BlueButton from '../../components/ui/BlueButton';
 import BurgerMenu from '../../components/ui/BurgerMenu';
+import { ContainerInfoMainAdjustable } from '../../components/ui/ContainerInfoMain';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import * as Progress from 'react-native-progress';
 import { auth, db } from '../../firebaseConfig';
@@ -20,6 +21,7 @@ const Home = () => {
   const [name, setName] = useState('');
   const [rank, setRank] = useState('Page');
   const [completedMissions, setCompletedMissions] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(300); // Состояние для высоты контейнера
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -104,54 +106,83 @@ const Home = () => {
         </Svg>
       </View>
       
-      <View style={styles.container}>
-        {/* Верхний блок: Welcome + логотип */}
-        <View style={styles.headerRow}>
-          <View style={styles.headerTextWrap}>
-            <Text style={styles.headerText}>{'Welcome\nback, Adventurer'}</Text>
-          </View>
-          <Image source={LOGO_SRC} style={styles.logo} resizeMode="contain" />
-        </View>
-
-        {/* Блок с аватаркой и инфо */}
-        <View style={styles.profileRow}>
-          <AvatarFrame size={97} imageSrc={avatarSrc} style={styles.avatarFrame} />
-          <View style={styles.infoBlock}>
-            <Text style={styles.nameText}>{name}</Text>
-            <View style={styles.rankRow}>
-              <Text style={styles.rankLabel}>Current rank: </Text>
-              <Text style={styles.rankName}>{rank}</Text>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.container}>
+          {/* Верхний блок: Welcome + логотип */}
+          <View style={styles.headerRow}>
+            <View style={styles.headerTextWrap}>
+              <Text style={styles.headerText}>{'Welcome\nback, Adventurer'}</Text>
             </View>
-            {nextRankName && (
+            <Image source={LOGO_SRC} style={styles.logo} resizeMode="contain" />
+          </View>
+
+          {/* Блок с аватаркой и инфо */}
+          <View style={styles.profileRow}>
+            <AvatarFrame size={97} imageSrc={avatarSrc} style={styles.avatarFrame} />
+            <View style={styles.infoBlock}>
+              <Text style={styles.nameText}>{name}</Text>
               <View style={styles.rankRow}>
-                <Text style={styles.rankLabel}>Next rank: </Text>
-                <Text style={styles.nextRankName}>{nextRankName}</Text>
+                <Text style={styles.rankLabel}>Current rank: </Text>
+                <Text style={styles.rankName}>{rank}</Text>
               </View>
-            )}
-            {/* Прогресс-бар */}
-            <View style={styles.progressWrap}>
-              <Progress.Bar
-                progress={progress}
-                width={null}
-                color="#FDEA35"
-                unfilledColor="transparent"
-                borderWidth={2}
-                borderColor="#F1AF07"
-                borderRadius={20}
-                height={18}
-              />
-              <Text style={styles.missionsText}>
-                Completed missions: {completedMissions} / {nextRankMinBags}
-              </Text>
+              {nextRankName && (
+                <View style={styles.rankRow}>
+                  <Text style={styles.rankLabel}>Next rank: </Text>
+                  <Text style={styles.nextRankName}>{nextRankName}</Text>
+                </View>
+              )}
+              {/* Прогресс-бар */}
+              <View style={styles.progressWrap}>
+                <Progress.Bar
+                  progress={progress}
+                  width={null}
+                  color="#FDEA35"
+                  unfilledColor="transparent"
+                  borderWidth={2}
+                  borderColor="#F1AF07"
+                  borderRadius={20}
+                  height={18}
+                />
+                <Text style={styles.missionsText}>
+                  Completed missions: {completedMissions} / {nextRankMinBags}
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        {/* Кнопка Scan Case */}
-        <View style={styles.buttonWrap}>
-          <BlueButton title="Scan Case" onPress={handleScanCase} width={200} fontSize={22} />
+          {/* Кнопка Scan Case */}
+          <View style={styles.buttonWrap}>
+            <BlueButton title="Scan Case" onPress={handleScanCase} width={200} fontSize={22} />
+          </View>
+
+          {/* Пример ContainerFrame */}
+          <ContainerInfoMainAdjustable height={containerHeight}>
+            <View style={styles.containerInfo}>
+                <Text style={styles.exampleTitle}>Container Frame</Text>
+                <Text style={styles.exampleContent}>
+                  Это простой, монолитный SVG-компонент. Он не растягивается,
+                  но сохраняет пропорции.
+                </Text>
+            </View>
+          </ContainerInfoMainAdjustable>
+
+          {/* Кнопки для регулировки высоты */}
+          <View style={styles.controls}>
+            <TouchableOpacity onPress={() => setContainerHeight(h => h - 20)} style={styles.controlButton}>
+              <Text style={styles.controlText}>-</Text>
+            </TouchableOpacity>
+            <Text style={styles.heightValue}>Высота: {containerHeight}</Text>
+            <TouchableOpacity onPress={() => setContainerHeight(h => h + 20)} style={styles.controlButton}>
+              <Text style={styles.controlText}>+</Text>
+            </TouchableOpacity>
+          </View>
+
         </View>
-      </View>
+      </ScrollView>
       
       {/* BurgerMenu внизу */}
       <BurgerMenu onNavigate={handleNavigation} />
@@ -160,8 +191,14 @@ const Home = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
+  scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 100, // Отступ для BurgerMenu
+  },
+  container: {
     backgroundColor: 'transparent',
     paddingTop: 40,
     paddingHorizontal: 20,
@@ -263,7 +300,48 @@ const styles = StyleSheet.create({
   buttonWrap: {
     alignItems: 'center',
     marginTop: 12,
+    marginBottom: 10,
   },
+  containerInfo: {
+    marginBottom: 20,
+    width: '100%',
+    maxWidth: 370,
+    alignSelf: 'center',
+  },
+  exampleTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FDEA35',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  exampleContent: {
+    color: '#FDEA35',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  controls: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  controlButton: {
+    backgroundColor: '#FDEA35',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+    marginHorizontal: 10,
+  },
+  controlText: {
+    color: '#08061A',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  heightValue: {
+    color: '#FDEA35',
+    fontSize: 16,
+  }
 });
 
 export default Home; 

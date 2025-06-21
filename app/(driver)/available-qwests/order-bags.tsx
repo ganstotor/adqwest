@@ -66,10 +66,10 @@ export default function OrderBags() {
   const router = useRouter();
 
   const rankLimits: Record<string, number[]> = {
-    Recruit: [25],
-    Sergeant: [25, 50, 100],
-    Captain: [25, 50, 100, 200],
-    General: [25, 50, 100, 200, 500],
+    Page: [25],
+    Squire: [25, 50],
+    Knight: [25, 50, 100],
+    Lord: [25, 50, 100, 200],
   };
 
   const fetchAddresses = () => {
