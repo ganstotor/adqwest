@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, ViewStyle } from "react-native";
 import Svg, {
   Path,
   Defs,
@@ -14,6 +14,7 @@ interface AutoHeightProps {
   children: React.ReactNode;
   minHeight?: number;
   padding?: number;
+  style?: ViewStyle;
 }
 
 const glowDefs = (
@@ -66,6 +67,7 @@ const ContainerInfoMain = ({
   children,
   minHeight = 296,
   padding = 45,
+  style,
 }: AutoHeightProps) => {
   const [contentHeight, setContentHeight] = useState(minHeight);
 
@@ -100,7 +102,7 @@ const ContainerInfoMain = ({
   } V32.6035 L21.8428 32.2031 C22.0551 23.8278 28.9113 17.1035 37.3379 17.1035 Z`;
 
   return (
-    <View style={[styles.container, { height: contentHeight }]}>
+    <View style={[styles.container, { height: contentHeight }, style]}>
       <View style={StyleSheet.absoluteFillObject}>
         <Svg
           width="100%"

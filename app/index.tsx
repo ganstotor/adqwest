@@ -5,13 +5,15 @@ import {
   StyleSheet,
   FlatList,
   Dimensions,
-  TouchableOpacity,
   Image,
-  SafeAreaView
+  SafeAreaView,
 } from "react-native";
 import { useRouter } from "expo-router";
+import ContainerInfoMain from "../components/ui/ContainerInfoMain";
+import GoldButton from "../components/ui/GoldButton";
+import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
-const { width } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
 
 const slides = [
   {
@@ -33,32 +35,60 @@ const WelcomeScreen: React.FC = () => {
   const flatListRef = useRef<FlatList>(null);
 
   const handleScroll = (event: any) => {
-    const index = Math.round(event.nativeEvent.contentOffset.x / width);
+    const slideWidth = width * 0.9 - 40;
+    const index = Math.round(event.nativeEvent.contentOffset.x / slideWidth);
     setCurrentIndex(index);
   };
 
   return (
     <SafeAreaView style={styles.container}>
-            <Image
+      {/* Градиентный фон */}
+      <View style={{ ...StyleSheet.absoluteFillObject, zIndex: -1 }}>
+        <Svg
+          height="100%"
+          width="100%"
+          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+        >
+          <Defs>
+            <LinearGradient id="bgGradient" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0%" stopColor="#02010C" />
+              <Stop offset="100%" stopColor="#08061A" />
+            </LinearGradient>
+          </Defs>
+          <Rect
+            x="0"
+            y="0"
+            width={width}
+            height={height}
+            fill="url(#bgGradient)"
+          />
+        </Svg>
+      </View>
+
+      <Image
         source={require("@/assets/images/logo.png")}
         style={styles.adqwestImage}
       />
-      <FlatList
-      
-        ref={flatListRef}
-        data={slides}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onScroll={handleScroll}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.slide}>
-            <Text style={styles.title}>{item.title}</Text>
-            <Text style={styles.text}>{item.text}</Text>
-          </View>
-        )}
-      />
+      <ContainerInfoMain style={{ width: "90%" }} padding={20}>
+        <View style={{ height: 350 }}>
+          <FlatList
+            ref={flatListRef}
+            data={slides}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScroll={handleScroll}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <View style={styles.slide}>
+                <Text style={styles.title}>{item.title}</Text>
+                {item.text && <Text style={styles.text}>{item.text}</Text>}
+              </View>
+            )}
+            scrollEventThrottle={16}
+          />
+        </View>
+      </ContainerInfoMain>
 
       {/* Индикаторы слайдера */}
       <View style={styles.indicatorContainer}>
@@ -74,12 +104,11 @@ const WelcomeScreen: React.FC = () => {
       </View>
 
       {/* Кнопка Get Started */}
-      <TouchableOpacity
-        style={styles.button}
+      <GoldButton
+        title="Get Started"
         onPress={() => router.push("/signup")}
-      >
-        <Text style={styles.buttonText}>Get Started</Text>
-      </TouchableOpacity>
+        width={250}
+      />
     </SafeAreaView>
   );
 };
@@ -89,59 +118,56 @@ export default WelcomeScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#08061A",
     justifyContent: "center",
     alignItems: "center",
   },
   slide: {
-    width,
+    width: width * 0.9 - 40,
+    height: "100%",
     justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: 20,
   },
   title: {
     fontSize: 24,
-    fontWeight: "bold",
+    fontWeight: "600",
     textAlign: "center",
+    color: "#FDEA35",
+    marginBottom: 20,
+    fontFamily: "Kantumruy Pro",
   },
   text: {
-    fontSize: 18,
-    width: "70%",
+    color: "#FDEA35",
+    textAlign: "center",
+    fontFamily: "Kantumruy Pro",
+    fontSize: 20,
+    fontStyle: "normal",
+    fontWeight: "400",
+    lineHeight: 26,
   },
   indicatorContainer: {
     flexDirection: "row",
-    position: "absolute",
-    bottom: 180,
+    marginVertical: 20,
   },
   indicator: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#ccc",
-    marginHorizontal: 4,
+    backgroundColor: "#444",
+    marginHorizontal: 5,
   },
   activeIndicator: {
-    backgroundColor: "#FF9800",
-    width: 10,
-    height: 10,
-  },
-  button: {
-    position: "absolute",
-    bottom: 80,
-    backgroundColor: "#FF9800",
-    paddingVertical: 12,
-    paddingHorizontal: 40,
-    borderRadius: 8,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold",
+    backgroundColor: "#F1AF07", // Gold color
+    width: 12,
+    height: 12,
+    borderRadius: 6,
   },
   adqwestImage: {
-    top: 200,
-    width: 150,
-    height: 150,
+    width: 200,
+    height: 200,
     resizeMode: "contain",
-    borderRadius: 20,
+    marginBottom: 0,
+    zIndex: 1,
   },
 });
