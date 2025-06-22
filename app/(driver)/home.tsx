@@ -7,21 +7,57 @@ import {
   Dimensions,
   ActivityIndicator,
   ScrollView,
+  TouchableOpacity,
 } from "react-native";
 import { useRouter } from "expo-router";
 import AvatarFrame from "../../components/ui/AvatarFrame";
 import BlueButton from "../../components/ui/BlueButton";
 import BurgerMenu from "../../components/ui/BurgerMenu";
 import ContainerInfoMain from "../../components/ui/ContainerInfoMain";
+import ContainerInfoSimple from "../../components/ui/ContainerInfoSimple";
+import GoldButton from "../../components/ui/GoldButton";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import * as Progress from "react-native-progress";
 import { auth, db } from "../../firebaseConfig";
-import { doc, getDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  DocumentReference,
+} from "firebase/firestore";
 import { ranks } from "../../constants/ranks";
 
 const LOGO_SRC = require("../../assets/images/logo.png");
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+type DriverCampaign = {
+  id: string;
+  campaignId: string;
+  logo: string;
+  companyName: string;
+  states: string[];
+  status: string;
+  bagsCount: number;
+  bagsDelivered: number;
+  startDate: string;
+  endDate: string;
+};
+
+type CampaignDoc = {
+  userAdId: DocumentReference;
+  states: string[];
+  startDate?: any; // Firestore Timestamp
+  endDate?: any;
+};
+
+type AdDoc = {
+  logo: string;
+  companyName: string;
+};
 
 const Home = () => {
   const router = useRouter();
@@ -29,6 +65,7 @@ const Home = () => {
   const [name, setName] = useState("");
   const [rank, setRank] = useState("Page");
   const [completedMissions, setCompletedMissions] = useState(0);
+  const [driverCampaigns, setDriverCampaigns] = useState<DriverCampaign[]>([]);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -45,6 +82,75 @@ const Home = () => {
       setLoading(false);
     };
     fetchUser();
+  }, []);
+
+  // Получение driver_campaigns
+  useEffect(() => {
+    const fetchDriverCampaigns = async () => {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      try {
+        const userDriverRef = doc(db, "users_driver", user.uid);
+
+        const q = query(
+          collection(db, "driver_campaigns"),
+          where("userDriverId", "==", userDriverRef)
+        );
+        const snapshot = await getDocs(q);
+
+        const campaignList: (DriverCampaign | null)[] = await Promise.all(
+          snapshot.docs.map(async (docSnap) => {
+            const data = docSnap.data();
+
+            const campaignRef = data.campaignId as DocumentReference;
+
+            const campaignSnap = await getDoc(campaignRef);
+            if (!campaignSnap.exists()) {
+              return null;
+            }
+
+            const campaignData = campaignSnap.data() as CampaignDoc;
+
+            const adRef = campaignData.userAdId;
+            const adSnap = await getDoc(adRef);
+
+            if (!adSnap.exists()) {
+              return null;
+            }
+
+            const adData = adSnap.data() as AdDoc;
+
+            return {
+              id: docSnap.id,
+              campaignId: campaignRef.id,
+              logo: adData.logo?.startsWith("http")
+                ? adData.logo
+                : `https:${adData.logo}`,
+              companyName: adData.companyName,
+              states: campaignData.states,
+              status: data.status,
+              bagsCount: data.bagsCount,
+              bagsDelivered: data.bagsDelivered ?? 0,
+              startDate:
+                campaignData.startDate?.toDate?.().toLocaleDateString() || "",
+              endDate:
+                campaignData.endDate?.toDate?.().toLocaleDateString() || "",
+            };
+          })
+        );
+
+        const filteredCampaigns = campaignList.filter(
+          Boolean
+        ) as DriverCampaign[];
+
+        setDriverCampaigns(filteredCampaigns);
+      } catch (error) {
+        console.error("🔥 Error fetching driver campaigns:", error);
+      }
+    };
+
+    fetchDriverCampaigns();
   }, []);
 
   // Найти текущий и следующий ранг по массиву ranks
@@ -64,7 +170,18 @@ const Home = () => {
   const missionsToNextRank = nextRankMinBags - minBags || 1;
 
   const handleScanCase = () => {
-    alert("Scan Case pressed!");
+    router.push("/my-qwests/scan-case");
+  };
+
+  const handleScanBag = (campaignId: string) => {
+    router.push({
+      pathname: "/my-qwests/scan-case",
+      params: { campaignId },
+    });
+  };
+
+  const handleOrderBags = () => {
+    router.push("/(driver)/available-qwests");
   };
 
   const handleNavigation = (route: string) => {
@@ -197,43 +314,85 @@ const Home = () => {
             />
           </View>
 
-          <ContainerInfoMain minHeight={200} padding={30}>
-            <View style={styles.containerInfo}>
-              <Text style={styles.exampleTitle}>AutoHeight компонент</Text>
-              <Text style={styles.exampleContent}>
-                Этот компонент пытается автоматически измерить высоту
-                содержимого и подстроить SVG рамку. Использует onLayout для
-                измерения.
-              </Text>
-              <Text style={styles.exampleContent}>
-                Lorem ipsum dolor sit amet consectetur, adipisicing elit.
-                Voluptates amet a dolor ut blanditiis voluptas fugit et eos
-                pariatur culpa distinctio hic qui aspernatur necessitatibus, in
-                earum. Vitae dignissimos enim dolor ipsa ad asperiores
-                voluptatem ducimus sed quibusdam aut, velit repudiandae
-                incidunt, molestiae assumenda labore distinctio exercitationem.
-                Ut autem explicabo sapiente mollitia atque esse voluptate animi.
-                Odio iste dignissimos veritatis? Sed facere explicabo sint
-                perferendis quisquam commodi esse pariatur deleniti. Repudiandae
-                corrupti veniam tempore doloribus aut sequi reiciendis animi,
-                eaque sunt, soluta et! Unde ad, a aliquid ea iure deleniti
-                commodi officia, repellat magni ullam doloribus dignissimos
-                voluptas, exercitationem qui? Lorem ipsum dolor sit amet
-                consectetur, adipisicing elit. Voluptates amet a dolor ut
-                blanditiis voluptas fugit et eos pariatur culpa distinctio hic
-                qui aspernatur necessitatibus, in earum. Vitae dignissimos enim
-                dolor ipsa ad asperiores voluptatem ducimus sed quibusdam aut,
-                velit repudiandae incidunt, molestiae assumenda labore
-                distinctio exercitationem. Ut autem explicabo sapiente mollitia
-                atque esse voluptate animi. Odio iste dignissimos veritatis? Sed
-                facere explicabo sint perferendis quisquam commodi esse pariatur
-                deleniti. Repudiandae corrupti veniam tempore doloribus aut
-                sequi reiciendis animi, eaque sunt, soluta et! Unde ad, a
-                aliquid ea iure deleniti commodi officia, repellat magni ullam
-                doloribus dignissimos voluptas, exercitationem qui?
-              </Text>
-            </View>
-          </ContainerInfoMain>
+          {/* Заголовок Your Campaigns */}
+          <Text style={styles.campaignsTitle}>Your Campaigns</Text>
+
+          {/* Отображение кампаний */}
+          {driverCampaigns.length > 0 ? (
+            driverCampaigns.map((campaign, index) => (
+              <View key={campaign.id} style={styles.campaignWrapper}>
+                <ContainerInfoMain minHeight={200} padding={40}>
+                  <View style={styles.campaignContainer}>
+                    {/* Блок с информацией */}
+                    <View style={styles.campaignInfoBlock}>
+                      {/* Левая часть - логотип */}
+                      <View style={styles.logoContainer}>
+                        <Image
+                          source={{ uri: campaign.logo }}
+                          style={styles.campaignLogo}
+                        />
+                      </View>
+
+                      {/* Правая часть - информация */}
+                      <View style={styles.campaignDetails}>
+                        <Text
+                          style={[styles.campaignText, { marginBottom: 4 }]}
+                        >
+                          {campaign.companyName}
+                        </Text>
+                        <View style={styles.infoRow}>
+                          <Text
+                            style={[styles.campaignText, { marginRight: 5 }]}
+                          >
+                            {campaign.bagsDelivered}/{campaign.bagsCount}
+                          </Text>
+                          <Text style={styles.campaignLabel}>
+                            missions completed
+                          </Text>
+                        </View>
+                        <View style={styles.infoRow}>
+                          <Text
+                            style={[styles.campaignText, { marginRight: 5 }]}
+                          >
+                            {campaign.endDate}
+                          </Text>
+                          <Text style={styles.campaignLabel}>end date</Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    {/* Кнопка Scan Bag */}
+                    <View style={styles.scanBagButtonContainer}>
+                      <GoldButton
+                        title="Scan Bag"
+                        onPress={() => handleScanBag(campaign.id)}
+                        width={200}
+                        height={60}
+                      />
+                    </View>
+                  </View>
+                </ContainerInfoMain>
+              </View>
+            ))
+          ) : (
+            <ContainerInfoSimple minHeight={150} padding={40}>
+              <View style={styles.emptyStateContainer}>
+                <Text style={styles.emptyStateText}>
+                  Looks like you don't have any active quests right now. Feel
+                  free to scan a case if you've got one handy, or browse the
+                  Campaigns section to find some cool new missions to dive into.
+                </Text>
+                <View style={styles.orderBagsButtonContainer}>
+                  <GoldButton
+                    title="Order Bags"
+                    onPress={handleOrderBags}
+                    width={200}
+                    height={60}
+                  />
+                </View>
+              </View>
+            </ContainerInfoSimple>
+          )}
         </View>
       </ScrollView>
 
@@ -353,32 +512,93 @@ const styles = StyleSheet.create({
   buttonWrap: {
     alignItems: "center",
     marginTop: 12,
-    marginBottom: 10,
+    marginBottom: 20,
   },
-  containerInfo: {
+  campaignsTitle: {
+    color: "#FDEA35",
+    textAlign: "center",
+    fontFamily: "Kantumruy Pro",
+    fontSize: 32,
+    fontStyle: "normal",
+    fontWeight: "600",
+    lineHeight: 38,
+    marginBottom: 20,
+    textShadowColor: "#F1AF07",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 1,
+  },
+  campaignContainer: {
+    alignItems: "center",
+    width: "100%",
+  },
+  campaignInfoBlock: {
+    flexDirection: "row",
+    alignItems: "flex-start",
     marginBottom: 20,
     width: "100%",
-    maxWidth: 370,
-    alignSelf: "center",
   },
-  exampleTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#FDEA35",
-    marginBottom: 10,
-    textAlign: "center",
+  logoContainer: {
+    marginRight: 20,
   },
-  exampleContent: {
+  campaignLogo: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+  },
+  campaignDetails: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  campaignText: {
     color: "#FDEA35",
+    textAlign: "left",
+    fontFamily: "Kantumruy Pro",
     fontSize: 16,
-    textAlign: "center",
+    fontStyle: "normal",
+    fontWeight: "300",
+    lineHeight: 20,
+    letterSpacing: 0.64,
   },
-  componentTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
+  scanBagButtonContainer: {
+    alignItems: "center",
+    marginTop: 10,
+  },
+  emptyStateContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyStateText: {
     color: "#FDEA35",
-    marginBottom: 10,
     textAlign: "center",
+    fontFamily: "Kantumruy Pro",
+    fontSize: 22,
+    fontStyle: "normal",
+    fontWeight: "400",
+    lineHeight: 28,
+    marginBottom: 20,
+  },
+  orderBagsButtonContainer: {
+    alignItems: "center",
+    marginTop: 10,
+  },
+  campaignWrapper: {
+    marginBottom: 20,
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    marginBottom: 4,
+    width: "100%",
+  },
+  campaignLabel: {
+    color: "#FDEA35",
+    fontFamily: "Kantumruy Pro",
+    fontSize: 16,
+    fontStyle: "normal",
+    fontWeight: "300",
+    lineHeight: 20,
+    letterSpacing: 0.64,
   },
 });
 
