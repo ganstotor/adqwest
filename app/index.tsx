@@ -11,7 +11,7 @@ import {
 import { useRouter } from "expo-router";
 import ContainerInfoMain from "../components/ui/ContainerInfoMain";
 import GoldButton from "../components/ui/GoldButton";
-import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
+import { BACKGROUND1_DARK_MAIN } from "../constants/Colors";
 
 const { width, height } = Dimensions.get("window");
 
@@ -42,29 +42,6 @@ const WelcomeScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Градиентный фон */}
-      <View style={{ ...StyleSheet.absoluteFillObject, zIndex: -1 }}>
-        <Svg
-          height="100%"
-          width="100%"
-          style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
-        >
-          <Defs>
-            <LinearGradient id="bgGradient" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%" stopColor="#02010C" />
-              <Stop offset="100%" stopColor="#08061A" />
-            </LinearGradient>
-          </Defs>
-          <Rect
-            x="0"
-            y="0"
-            width={width}
-            height={height}
-            fill="url(#bgGradient)"
-          />
-        </Svg>
-      </View>
-
       <Image
         source={require("@/assets/images/logo.png")}
         style={styles.adqwestImage}
@@ -118,7 +95,7 @@ export default WelcomeScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#08061A",
+    backgroundColor: BACKGROUND1_DARK_MAIN,
     justifyContent: "center",
     alignItems: "center",
   },

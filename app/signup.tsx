@@ -7,6 +7,8 @@ import {
   StyleSheet,
   Modal,
   ScrollView,
+  SafeAreaView,
+  Dimensions,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { auth, db } from "../firebaseConfig";
@@ -24,17 +26,30 @@ import {
 } from "@react-native-google-signin/google-signin";
 import { Button } from "react-native";
 
-const GOOGLE_WEB_CLIENT_ID = "251220864547-nl5afre9cfa1lko18a51vbun8jhkv4mh.apps.googleusercontent.com";
+import GoldButton from "../components/ui/GoldButton";
+import GreenButton from "../components/ui/GreenButton";
+import BlueButton from "../components/ui/BlueButton";
+import { BACKGROUND1_DARK_MAIN } from "../constants/Colors";
+
+const { width, height } = Dimensions.get("window");
+// Извлекаем цвета из BACKGROUND1_DARK_GRADIENT для использования в SVG
+const backgroundGradient = ["#02010C", "#08061A"];
+
+const GOOGLE_WEB_CLIENT_ID =
+  "251220864547-nl5afre9cfa1lko18a51vbun8jhkv4mh.apps.googleusercontent.com";
 
 // Configure Google Sign-In
-console.log('Configuring Google Sign-In with webClientId:', GOOGLE_WEB_CLIENT_ID);
+console.log(
+  "Configuring Google Sign-In with webClientId:",
+  GOOGLE_WEB_CLIENT_ID
+);
 GoogleSignin.configure({
   webClientId: GOOGLE_WEB_CLIENT_ID,
   offlineAccess: true,
   forceCodeForRefreshToken: true,
-  scopes: ['profile', 'email'],
+  scopes: ["profile", "email"],
 });
-console.log('Google Sign-In configuration completed');
+console.log("Google Sign-In configuration completed");
 
 export default function AuthScreen() {
   const [mode, setMode] = useState<"login" | "signup">("signup");
@@ -110,39 +125,41 @@ export default function AuthScreen() {
 
   const signInWithGoogle = async () => {
     try {
-      console.log('Starting Google Sign-In...');
-      console.log('Checking Play Services...');
-      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      console.log('Play Services check passed');
-      
-      console.log('Attempting to sign in with Google...');
+      console.log("Starting Google Sign-In...");
+      console.log("Checking Play Services...");
+      await GoogleSignin.hasPlayServices({
+        showPlayServicesUpdateDialog: true,
+      });
+      console.log("Play Services check passed");
+
+      console.log("Attempting to sign in with Google...");
       const userInfo = await GoogleSignin.signIn();
-      console.log('Google Sign-In successful, user info:', userInfo);
-      
-      console.log('Getting tokens...');
+      console.log("Google Sign-In successful, user info:", userInfo);
+
+      console.log("Getting tokens...");
       const { idToken } = await GoogleSignin.getTokens();
-      console.log('Got tokens, idToken exists:', !!idToken);
-      
+      console.log("Got tokens, idToken exists:", !!idToken);
+
       if (!idToken) {
-        throw new Error('No ID token present!');
+        throw new Error("No ID token present!");
       }
-      
-      console.log('Creating Firebase credential...');
+
+      console.log("Creating Firebase credential...");
       const credential = GoogleAuthProvider.credential(idToken);
-      console.log('Firebase credential created');
-      
-      console.log('Signing in to Firebase...');
+      console.log("Firebase credential created");
+
+      console.log("Signing in to Firebase...");
       const userCredential = await signInWithCredential(auth, credential);
       const user = userCredential.user;
-      console.log('Firebase sign in successful, user:', user.uid);
-      
-      console.log('Checking user document...');
+      console.log("Firebase sign in successful, user:", user.uid);
+
+      console.log("Checking user document...");
       const userDocRef = doc(db, "users_driver", user.uid);
       const userDocSnap = await getDoc(userDocRef);
-      console.log('User document exists:', userDocSnap.exists());
-      
+      console.log("User document exists:", userDocSnap.exists());
+
       if (!userDocSnap.exists()) {
-        console.log('Creating new user document...');
+        console.log("Creating new user document...");
         await setDoc(userDocRef, {
           email: user.email,
           name: user.displayName || name,
@@ -154,312 +171,249 @@ export default function AuthScreen() {
           status: "pending",
           activationPopupShown: false,
         });
-        console.log('New user document created');
+        console.log("New user document created");
         router.replace("/(driver)/home");
       } else {
         const userData = userDocSnap.data();
-        console.log('Existing user data:', userData);
+        console.log("Existing user data:", userData);
         router.replace("/(driver)/home");
       }
     } catch (error: any) {
-      console.error('Google Sign-In Error Details:', {
+      console.error("Google Sign-In Error Details:", {
         code: error.code,
         message: error.message,
         stack: error.stack,
-        name: error.name
+        name: error.name,
       });
-      alert('Google Sign-In failed: ' + error.message);
+      alert("Google Sign-In failed: " + error.message);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>
-        {mode === "signup" ? "Sign Up" : "Login"}
-      </Text>
-
-      {mode === "signup" && (
-        <TextInput
-          placeholder="Full Name"
-          value={name}
-          onChangeText={setName}
-          style={styles.input}
-        />
-      )}
-
-      <TextInput
-        placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        style={styles.input}
-      />
-      <TextInput
-        placeholder="Password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        style={styles.input}
-      />
-
-      {mode === "signup" && (
-        <View style={styles.termsContainer}>
-          <TouchableOpacity
-            style={styles.checkboxContainer}
-            onPress={() => setTermsAgreed(!termsAgreed)}
-          >
-            <View
-              style={[styles.checkbox, termsAgreed && styles.checkboxChecked]}
-            >
-              {termsAgreed && <Text style={styles.checkmark}>✓</Text>}
-            </View>
-            <Text style={styles.termsText}>I agree to the </Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setShowTermsModal(true)}>
-            <Text style={styles.termsLink}>Terms and Conditions</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      <TouchableOpacity style={styles.authButton} onPress={handleAuth}>
-        <Text style={styles.buttonText}>
-          {mode === "signup" ? "Create Account" : "Login"}
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <Text style={styles.title}>
+          {mode === "signup" ? "Sign Up" : "Login"}
         </Text>
-      </TouchableOpacity>
 
-      <Text style={styles.switchText}>
-        {mode === "signup"
-          ? "Already have an account?"
-          : "Don't have an account?"}{" "}
-        <Text
-          style={styles.switchLink}
-          onPress={() => setMode(mode === "signup" ? "login" : "signup")}
-        >
-          {mode === "signup" ? "Login" : "Sign Up"}
-        </Text>
-      </Text>
-
-      <View style={styles.dividerContainer}>
-        <View style={styles.line} />
-        <Text style={styles.dividerText}>or</Text>
-        <View style={styles.line} />
-      </View>
-
-      <TouchableOpacity style={styles.quickButton} onPress={handleQuickLogin}>
-        <Text style={styles.buttonText}>Quick Login (alex@mail.com)</Text>
-      </TouchableOpacity>
-
-      <GoogleSigninButton
-        style={{ width: 192, height: 48, marginTop: 10 }}
-        size={GoogleSigninButton.Size.Wide}
-        color={GoogleSigninButton.Color.Dark}
-        onPress={signInWithGoogle}
-      />
-
-      <Modal
-        visible={showTermsModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowTermsModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Terms and Agreement</Text>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setShowTermsModal(false)}
-              >
-                <Text style={styles.closeButtonText}>×</Text>
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={styles.modalBody}>
-              <Text style={styles.modalText}>
-                By accepting these terms, you agree to:
-                {"\n\n"}
-                1. Provide accurate and truthful information about your delivery
-                experience
-                {"\n\n"}
-                2. Maintain professional conduct while using our platform
-                {"\n\n"}
-                3. Follow all local regulations and guidelines for delivery
-                services
-                {"\n\n"}
-                4. Keep your account information up to date
-                {"\n\n"}
-                5. Respect the privacy and confidentiality of customer
-                information
-                {"\n\n"}
-                6. Comply with our platform's policies and procedures
-                {"\n\n"}
-                7. Understand that violation of these terms may result in
-                account suspension
-              </Text>
-            </ScrollView>
-            <TouchableOpacity
-              style={styles.modalButton}
-              onPress={() => {
-                setTermsAgreed(true);
-                setShowTermsModal(false);
-              }}
-            >
-              <Text style={styles.modalButtonText}>I Agree</Text>
-            </TouchableOpacity>
+        {mode === "signup" && (
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Full Name</Text>
+            <TextInput
+              placeholder="Enter your full name"
+              placeholderTextColor="#888"
+              value={name}
+              onChangeText={setName}
+              style={styles.input}
+            />
           </View>
+        )}
+
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Email</Text>
+          <TextInput
+            placeholder="Enter your email"
+            placeholderTextColor="#888"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            style={styles.input}
+          />
         </View>
-      </Modal>
-    </View>
+
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Password</Text>
+          <TextInput
+            placeholder="Enter your password"
+            placeholderTextColor="#888"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            style={styles.input}
+          />
+        </View>
+
+        {mode === "signup" && (
+          <View style={styles.termsContainer}>
+            <TouchableOpacity
+              style={[styles.checkbox, termsAgreed && styles.checkboxAgreed]}
+              onPress={() => setTermsAgreed(!termsAgreed)}
+            >
+              {termsAgreed && <Text style={styles.checkboxCheck}>✓</Text>}
+            </TouchableOpacity>
+            <Text style={styles.termsText}>
+              I agree to the{" "}
+              <Text
+                style={styles.linkText}
+                onPress={() => setShowTermsModal(true)}
+              >
+                Terms and Conditions
+              </Text>
+            </Text>
+          </View>
+        )}
+
+        <GoldButton
+          title={mode === "signup" ? "Create Account" : "Login"}
+          onPress={handleAuth}
+          style={{ marginTop: 20 }}
+        />
+
+        <View style={styles.separator}>
+          <View style={styles.line} />
+          <Text style={styles.separatorText}>or</Text>
+          <View style={styles.line} />
+        </View>
+
+        <GreenButton
+          title="Quick Login"
+          onPress={handleQuickLogin}
+          style={{ marginBottom: 10 }}
+        />
+        <BlueButton title="Continue with Google" onPress={signInWithGoogle} />
+
+        <TouchableOpacity
+          onPress={() => setMode(mode === "login" ? "signup" : "login")}
+        >
+          <Text style={styles.toggleText}>
+            {mode === "login"
+              ? "Don't have an account? Sign Up"
+              : "Already have an account? "}
+            <Text style={styles.linkText}>
+              {mode === "login" ? "" : "Login"}
+            </Text>
+          </Text>
+        </TouchableOpacity>
+
+        {/* Terms Modal */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={showTermsModal}
+          onRequestClose={() => setShowTermsModal(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Terms and Conditions</Text>
+              <ScrollView>
+                <Text>Here are the terms and conditions...</Text>
+              </ScrollView>
+              <Button title="Close" onPress={() => setShowTermsModal(false)} />
+            </View>
+          </View>
+        </Modal>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: BACKGROUND1_DARK_MAIN,
+  },
+  scrollContainer: {
+    flexGrow: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
   },
   title: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: "bold",
-    marginBottom: 20,
+    color: "#FDEA35",
+    marginBottom: 30,
+    fontFamily: "Kantumruy Pro",
+  },
+  inputContainer: {
+    width: "100%",
+    marginBottom: 15,
+  },
+  label: {
+    color: "#FDEA35",
+    marginBottom: 8,
+    fontSize: 16,
+    fontFamily: "Kantumruy Pro",
   },
   input: {
     width: "100%",
+    height: 50,
     borderWidth: 1,
-    borderColor: "#ccc",
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 10,
-  },
-  authButton: {
-    backgroundColor: "#FF9800",
-    padding: 12,
-    borderRadius: 5,
-    width: "100%",
-    alignItems: "center",
-    marginVertical: 5,
-  },
-  quickButton: {
-    backgroundColor: "#4CAF50",
-    padding: 12,
-    borderRadius: 5,
-    width: "100%",
-    alignItems: "center",
-    marginTop: 10,
-  },
-  buttonText: {
-    color: "white",
-    fontWeight: "bold",
-  },
-  switchText: {
-    marginTop: 15,
+    borderColor: "#FDEA35",
+    borderRadius: 100,
+    paddingHorizontal: 20,
+    backgroundColor: "#000",
+    color: "#fff",
     fontSize: 16,
-  },
-  switchLink: {
-    fontWeight: "bold",
-    color: "#007AFF",
-  },
-  dividerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 15,
-    width: "100%",
-  },
-  line: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#ccc",
-  },
-  dividerText: {
-    marginHorizontal: 10,
-    color: "#777",
   },
   termsContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 10,
-    flexWrap: "wrap",
     width: "100%",
-  },
-  checkboxContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    marginBottom: 20,
+    marginTop: 10,
   },
   checkbox: {
     width: 20,
     height: 20,
     borderWidth: 1,
-    borderColor: "#007bff",
+    borderColor: "#FDEA35",
     marginRight: 10,
     justifyContent: "center",
     alignItems: "center",
   },
-  checkboxChecked: {
-    backgroundColor: "#007bff",
+  checkboxAgreed: {
+    backgroundColor: "#FDEA35",
   },
-  checkmark: {
-    color: "#fff",
-    fontSize: 14,
+  checkboxCheck: {
+    color: "#000",
     fontWeight: "bold",
   },
   termsText: {
-    fontSize: 14,
-    color: "#333",
+    color: "#FDEA35",
+    fontSize: 16,
   },
-  termsLink: {
-    fontSize: 14,
-    color: "#007bff",
+  linkText: {
+    color: "#28B9EF",
     textDecorationLine: "underline",
   },
-  modalOverlay: {
+  separator: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: "80%",
+    marginVertical: 20,
+  },
+  line: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    height: 1,
+    backgroundColor: "#FDEA35",
+  },
+  separatorText: {
+    color: "#FDEA35",
+    marginHorizontal: 10,
+  },
+  toggleText: {
+    color: "#FDEA35",
+    marginTop: 20,
+    fontSize: 16,
+  },
+  modalContainer: {
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.7)",
   },
   modalContent: {
-    backgroundColor: "white",
+    width: "80%",
+    backgroundColor: "#08061A",
     borderRadius: 10,
     padding: 20,
-    width: "90%",
-    maxHeight: "80%",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 15,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: "bold",
-  },
-  closeButton: {
-    padding: 5,
-  },
-  closeButtonText: {
-    fontSize: 24,
-    color: "#666",
-  },
-  modalBody: {
-    maxHeight: "80%",
-  },
-  modalText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: "#333",
-  },
-  modalButton: {
-    backgroundColor: "#007bff",
-    padding: 12,
-    borderRadius: 8,
-    alignItems: "center",
-    marginTop: 15,
-  },
-  modalButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
+    color: "#FDEA35",
+    marginBottom: 15,
   },
 });
