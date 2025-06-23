@@ -29,6 +29,7 @@ import { Button } from "react-native";
 import GoldButton from "../components/ui/GoldButton";
 import GreenButton from "../components/ui/GreenButton";
 import BlueButton from "../components/ui/BlueButton";
+import CustomInput from "../components/ui/CustomInput";
 import { BACKGROUND1_DARK_MAIN } from "../constants/Colors";
 
 const { width, height } = Dimensions.get("window");
@@ -197,41 +198,29 @@ export default function AuthScreen() {
         </Text>
 
         {mode === "signup" && (
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Full Name</Text>
-            <TextInput
-              placeholder="Enter your full name"
-              placeholderTextColor="#888"
-              value={name}
-              onChangeText={setName}
-              style={styles.input}
-            />
-          </View>
+          <CustomInput
+            label="Full Name"
+            placeholder="Enter your full name"
+            value={name}
+            onChangeText={setName}
+          />
         )}
 
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Email</Text>
-          <TextInput
-            placeholder="Enter your email"
-            placeholderTextColor="#888"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            style={styles.input}
-          />
-        </View>
+        <CustomInput
+          label="Email"
+          placeholder="Enter your email"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+        />
 
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Password</Text>
-          <TextInput
-            placeholder="Enter your password"
-            placeholderTextColor="#888"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            style={styles.input}
-          />
-        </View>
+        <CustomInput
+          label="Password"
+          placeholder="Enter your password"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+        />
 
         {mode === "signup" && (
           <View style={styles.termsContainer}>
@@ -324,27 +313,6 @@ const styles = StyleSheet.create({
     color: "#FDEA35",
     marginBottom: 30,
     fontFamily: "Kantumruy Pro",
-  },
-  inputContainer: {
-    width: "100%",
-    marginBottom: 15,
-  },
-  label: {
-    color: "#FDEA35",
-    marginBottom: 8,
-    fontSize: 16,
-    fontFamily: "Kantumruy Pro",
-  },
-  input: {
-    width: "100%",
-    height: 50,
-    borderWidth: 1,
-    borderColor: "#FDEA35",
-    borderRadius: 100,
-    paddingHorizontal: 20,
-    backgroundColor: "#000",
-    color: "#fff",
-    fontSize: 16,
   },
   termsContainer: {
     flexDirection: "row",

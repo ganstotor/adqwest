@@ -1,23 +1,46 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from 'react-native';
-import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { doc, getDoc, addDoc, collection, GeoPoint, DocumentReference } from 'firebase/firestore';
-import { db } from '../../../firebaseConfig';
-import * as Location from 'expo-location';
-import { getAuth } from 'firebase/auth';
+import React, { useEffect, useState } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import {
+  CameraView,
+  useCameraPermissions,
+  BarcodeScanningResult,
+} from "expo-camera";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import {
+  doc,
+  getDoc,
+  addDoc,
+  collection,
+  GeoPoint,
+  DocumentReference,
+} from "firebase/firestore";
+import { db } from "../../../firebaseConfig";
+import * as Location from "expo-location";
+import { getAuth } from "firebase/auth";
+import GoldButton from "../../../components/ui/GoldButton";
+import CustomInput from "../../../components/ui/CustomInput";
+import ContainerInfoSimple from "../../../components/ui/ContainerInfoSimple";
+import {
+  BACKGROUND1_DARK_MAIN,
+  ACCENT1_LIGHT,
+} from "../../../constants/Colors";
 
 const ScanBagScreen: React.FC = () => {
   const router = useRouter();
-  const { driverCampaignId } = useLocalSearchParams<{ driverCampaignId: string }>();
+  const { driverCampaignId } = useLocalSearchParams<{
+    driverCampaignId: string;
+  }>();
 
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
-  const [recipientName, setRecipientName] = useState('');
-  const [geoLocationName, setGeoLocationName] = useState('');
+  const [recipientName, setRecipientName] = useState("");
+  const [geoLocationName, setGeoLocationName] = useState("");
   const [showInputs, setShowInputs] = useState(false);
-  const [campaignRef, setCampaignRef] = useState<DocumentReference | null>(null);
-  const [driverCampaignRef, setDriverCampaignRef] = useState<DocumentReference | null>(null);
+  const [campaignRef, setCampaignRef] = useState<DocumentReference | null>(
+    null
+  );
+  const [driverCampaignRef, setDriverCampaignRef] =
+    useState<DocumentReference | null>(null);
 
   useEffect(() => {
     // Запрашиваем разрешение при монтировании
@@ -30,11 +53,16 @@ const ScanBagScreen: React.FC = () => {
     const fetchDriverCampaign = async () => {
       if (!driverCampaignId) return;
 
-      const driverCampaignDocRef = doc(db, 'driver_campaigns', driverCampaignId);
+      const driverCampaignDocRef = doc(
+        db,
+        "driver_campaigns",
+        driverCampaignId
+      );
       setDriverCampaignRef(driverCampaignDocRef);
 
       const driverCampaignSnap = await getDoc(driverCampaignDocRef);
-      const campaignReference = driverCampaignSnap.data()?.campaignId as DocumentReference;
+      const campaignReference = driverCampaignSnap.data()
+        ?.campaignId as DocumentReference;
       setCampaignRef(campaignReference);
     };
 
@@ -50,16 +78,22 @@ const ScanBagScreen: React.FC = () => {
     if (campaignRef.id === scannedId) {
       setShowInputs(true);
     } else {
-      Alert.alert('Invalid Bag', 'This bag does not match your campaign.');
+      Alert.alert("Invalid Bag", "This bag does not match your campaign.");
     }
   };
 
   const handleStartMission = async () => {
-    if (!recipientName || !geoLocationName || !campaignRef || !driverCampaignRef) return;
+    if (
+      !recipientName ||
+      !geoLocationName ||
+      !campaignRef ||
+      !driverCampaignRef
+    )
+      return;
 
     const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission denied', 'Location access is required.');
+    if (status !== "granted") {
+      Alert.alert("Permission denied", "Location access is required.");
       return;
     }
 
@@ -70,23 +104,26 @@ const ScanBagScreen: React.FC = () => {
     const currentUser = auth.currentUser;
 
     if (!currentUser) {
-      Alert.alert('User not authenticated');
+      Alert.alert("User not authenticated");
       return;
     }
 
-    const userDriverRef = doc(db, 'users_driver', currentUser.uid);
+    const userDriverRef = doc(db, "users_driver", currentUser.uid);
 
-    await addDoc(collection(db, 'driver_missions'), {
+    await addDoc(collection(db, "driver_missions"), {
       campaignId: campaignRef,
       driverCampaignId: driverCampaignRef,
       startMission: geoPoint,
       recipientName: recipientName.trim(),
-      status: 'active',
+      status: "active",
       startLocationName: geoLocationName.trim(),
       userDriverId: userDriverRef,
     });
 
-    router.push({ pathname: '/my-qwests/missions', params: { driverCampaignId } });
+    router.push({
+      pathname: "/my-qwests/missions",
+      params: { driverCampaignId },
+    });
   };
 
   // 🔽 Вариант при неизвестном статусе (еще не проверено)
@@ -102,10 +139,15 @@ const ScanBagScreen: React.FC = () => {
   if (!permission.granted) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>We need access to your camera to scan the bag.</Text>
-        <TouchableOpacity style={styles.button} onPress={requestPermission}>
-          <Text style={styles.buttonText}>Grant Camera Permission</Text>
-        </TouchableOpacity>
+        <Text style={styles.title}>
+          We need access to your camera to scan the bag.
+        </Text>
+        <GoldButton
+          title="Grant Camera Permission"
+          onPress={requestPermission}
+          width={300}
+          height={50}
+        />
       </View>
     );
   }
@@ -119,7 +161,7 @@ const ScanBagScreen: React.FC = () => {
         <View style={styles.scannerBox}>
           <CameraView
             style={StyleSheet.absoluteFillObject}
-            barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+            barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
             onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
           />
         </View>
@@ -127,32 +169,37 @@ const ScanBagScreen: React.FC = () => {
 
       {showInputs && (
         <>
-          <Text style={styles.label}>Where did you pick up the order from? (required)</Text>
-          <TextInput
-            style={styles.input}
+          <CustomInput
+            label="Where did you pick up the order from? (required)"
             placeholder="Recipient Name"
             value={recipientName}
             onChangeText={setRecipientName}
+            containerStyle={{ marginBottom: 15 }}
           />
 
-          <Text style={styles.label}>What is the first name of the individual you picked up for? (required)</Text>
-          <TextInput
-            style={styles.input}
+          <CustomInput
+            label="What is the first name of the individual you picked up for? (required)"
             placeholder="Start Geo"
             value={geoLocationName}
             onChangeText={setGeoLocationName}
+            containerStyle={{ marginBottom: 20 }}
           />
         </>
       )}
 
       {showInputs && (
-        <TouchableOpacity
-          style={[styles.button, !(recipientName && geoLocationName) && { backgroundColor: 'gray' }]}
-          onPress={handleStartMission}
-          disabled={!(recipientName && geoLocationName)}
-        >
-          <Text style={styles.buttonText}>Start mission</Text>
-        </TouchableOpacity>
+        <View style={{ alignItems: "center", marginTop: 20 }}>
+          <GoldButton
+            title="Start mission"
+            onPress={handleStartMission}
+            width={350}
+            height={70}
+            style={{
+              opacity: !(recipientName && geoLocationName) ? 0.5 : 1,
+              borderRadius: 20,
+            }}
+          />
+        </View>
       )}
     </View>
   );
@@ -164,39 +211,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: BACKGROUND1_DARK_MAIN,
   },
   title: {
     fontSize: 18,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: 20,
+    color: ACCENT1_LIGHT,
   },
   scannerBox: {
     height: 250,
-    overflow: 'hidden',
+    overflow: "hidden",
     borderRadius: 12,
     marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    marginTop: 10,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 10,
-    marginTop: 5,
-    borderRadius: 8,
-  },
-  button: {
-    marginTop: 20,
-    backgroundColor: '#FFA500',
-    padding: 15,
-    borderRadius: 10,
-  },
-  buttonText: {
-    color: '#fff',
-    textAlign: 'center',
-    fontWeight: 'bold',
   },
 });

@@ -26,8 +26,14 @@ import { getAuth } from "firebase/auth";
 import { TextInput, ScrollView } from "react-native";
 import GoldButton from "../../../components/ui/GoldButton";
 import BlueButton from "../../../components/ui/BlueButton";
+import CustomInput from "../../../components/ui/CustomInput";
 import ContainerInfoMain from "../../../components/ui/ContainerInfoMain";
-import { BACKGROUND1_DARK_MAIN, ACCENT1_LIGHT, ACCENT1_DARK, ACCENT2_DARK } from "../../../constants/Colors";
+import {
+  BACKGROUND1_DARK_MAIN,
+  ACCENT1_LIGHT,
+  ACCENT1_DARK,
+  ACCENT2_DARK,
+} from "../../../constants/Colors";
 import Svg, { Path, Defs, RadialGradient, Stop, Rect } from "react-native-svg";
 
 type AddressType = {
@@ -226,16 +232,16 @@ export default function OrderBags() {
   const handleAddCampaign = async () => {
     const userId = auth.currentUser?.uid;
     if (!selectedBags || !userId || !campaignId || !deliveryOption) return;
-  
+
     try {
       const campaignRef = doc(db, "campaigns", String(campaignId));
       const userDriverRef = doc(db, "users_driver", userId);
-  
+
       // Get current remainingBags
       const campaignSnap = await getDoc(campaignRef);
       const campaignData = campaignSnap.data();
       const currentRemaining = campaignData?.remainingBags ?? 0;
-  
+
       if (selectedBags > currentRemaining) {
         Alert.alert(
           "Not enough bags",
@@ -243,20 +249,23 @@ export default function OrderBags() {
         );
         return;
       }
-  
+
       // Get primary address
       const primary = addresses.find((a) => a.isPrimary);
       if (!primary) {
-        Alert.alert("Missing address", "Please set a primary shipping address.");
+        Alert.alert(
+          "Missing address",
+          "Please set a primary shipping address."
+        );
         return;
       }
-  
+
       const updatedRemaining = currentRemaining - selectedBags;
-  
+
       await updateDoc(campaignRef, {
         remainingBags: updatedRemaining,
       });
-  
+
       await addDoc(collection(db, "driver_campaigns"), {
         bagsCount: selectedBags,
         campaignId: campaignRef,
@@ -274,60 +283,105 @@ export default function OrderBags() {
           zip: primary.zip,
         },
       });
-  
+
       await updateDoc(userDriverRef, {
         uncompletedMissionsCount: uncompletedMissionsCount + selectedBags,
       });
-  
+
       Alert.alert("Success", "Campaign updated successfully!");
       router.replace("/");
     } catch (error) {
       console.error("Error adding campaign:", error);
       Alert.alert("Error", "Something went wrong.");
     }
-  };  
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: BACKGROUND1_DARK_MAIN }}>
       <ScrollView contentContainerStyle={{ padding: 20, flexGrow: 1 }}>
         {/* Блок с логотипом и информацией о кампании */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 20,
+          }}
+        >
           {logo && (
             <Image
               source={{ uri: logo }}
-              style={{ 
-                width: 80, 
-                height: 80, 
+              style={{
+                width: 80,
+                height: 80,
                 resizeMode: "cover",
                 borderRadius: 40,
-                marginRight: 15
+                marginRight: 15,
               }}
             />
           )}
           <View style={{ flex: 1 }}>
             {companyName && (
-              <Text style={{ fontSize: 18, fontWeight: "bold", color: ACCENT1_LIGHT, marginBottom: 5 }}>
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: "bold",
+                  color: ACCENT1_LIGHT,
+                  marginBottom: 5,
+                }}
+              >
                 {companyName}
               </Text>
             )}
             {remainingBags !== null && bagsCount !== null && (
-              <Text style={{ fontWeight: "bold", color: ACCENT1_LIGHT, marginBottom: 3 }}>
+              <Text
+                style={{
+                  fontWeight: "bold",
+                  color: ACCENT1_LIGHT,
+                  marginBottom: 3,
+                }}
+              >
                 Remaining bags: {remainingBags} / {bagsCount}
               </Text>
             )}
-            {area && <Text style={{ color: ACCENT1_LIGHT, fontSize: 14 }}>{area}</Text>}
+            {area && (
+              <Text style={{ color: ACCENT1_LIGHT, fontSize: 14 }}>{area}</Text>
+            )}
           </View>
         </View>
 
-        <Text style={{ marginTop: 20, color: ACCENT1_LIGHT }}>Choose number of bags:</Text>
-        
+        <Text style={{ marginTop: 20, color: ACCENT1_LIGHT }}>
+          Choose number of bags:
+        </Text>
+
         {/* Стилизованный блок выбора количества сумок - адаптивный */}
         <View style={{ marginVertical: 10 }}>
-          <Svg width="100%" height="117" viewBox="0 0 521 117" style={{ width: "100%", height: 117 }}>
-            <Path d="M24.5208 1L1 25.3121V93.2315L23.364 116H497.25L520 92.8456V24.9262L496.094 1H24.5208Z" stroke="#F1AF07"/>
-            <Path d="M27.9913 7.94629L8.71191 27.2416V90.1443L27.6057 109.054H493.78L512.288 90.1443V27.6275L493.009 7.94629H27.9913Z" stroke="#F1AF07" strokeWidth="2"/>
+          <Svg
+            width="100%"
+            height="117"
+            viewBox="0 0 521 117"
+            style={{ width: "100%", height: 117 }}
+          >
+            <Path
+              d="M24.5208 1L1 25.3121V93.2315L23.364 116H497.25L520 92.8456V24.9262L496.094 1H24.5208Z"
+              stroke="#F1AF07"
+            />
+            <Path
+              d="M27.9913 7.94629L8.71191 27.2416V90.1443L27.6057 109.054H493.78L512.288 90.1443V27.6275L493.009 7.94629H27.9913Z"
+              stroke="#F1AF07"
+              strokeWidth="2"
+            />
           </Svg>
-          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
+          <View
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
             {rank && (
               <View
                 style={{
@@ -371,17 +425,29 @@ export default function OrderBags() {
                       style={{
                         width: 50,
                         height: 50,
-                        justifyContent: 'center',
-                        alignItems: 'center',
+                        justifyContent: "center",
+                        alignItems: "center",
                         borderWidth: 2,
                         borderColor: ACCENT2_DARK,
                         borderRadius: 16,
-                        overflow: 'hidden',
+                        overflow: "hidden",
                       }}
                     >
-                      <View style={{ width: '100%', height: '100%', position: 'relative' }}>
+                      <View
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          position: "relative",
+                        }}
+                      >
                         {isSelected && (
-                          <Svg width="100%" height="100%" viewBox="0 0 50 50" style={{ width: '100%', height: '100%' }} fill="none">
+                          <Svg
+                            width="100%"
+                            height="100%"
+                            viewBox="0 0 50 50"
+                            style={{ width: "100%", height: "100%" }}
+                            fill="none"
+                          >
                             <Defs>
                               <RadialGradient
                                 id={`paint0_radial_${num}`}
@@ -394,24 +460,35 @@ export default function OrderBags() {
                                 <Stop offset="1" stopColor="#00030F" />
                               </RadialGradient>
                             </Defs>
-                            <Rect x="0" y="0" width="50" height="50" rx="25" fill={`url(#paint0_radial_${num})`} />
+                            <Rect
+                              x="0"
+                              y="0"
+                              width="50"
+                              height="50"
+                              rx="25"
+                              fill={`url(#paint0_radial_${num})`}
+                            />
                           </Svg>
                         )}
-                        <View style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          width: '100%',
-                          height: '100%',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          zIndex: 1,
-                        }}>
-                          <Text style={{ 
-                            color: isAvailable ? ACCENT1_DARK : '#666',
-                            fontWeight: "bold",
-                            fontSize: 14,
-                          }}>
+                        <View
+                          style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            width: "100%",
+                            height: "100%",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            zIndex: 1,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: isAvailable ? ACCENT1_DARK : "#666",
+                              fontWeight: "bold",
+                              fontSize: 14,
+                            }}
+                          >
                             {num}
                           </Text>
                         </View>
@@ -424,7 +501,9 @@ export default function OrderBags() {
           </View>
         </View>
 
-        <Text style={{ fontWeight: "bold", marginTop: 15, color: ACCENT1_LIGHT }}>
+        <Text
+          style={{ fontWeight: "bold", marginTop: 15, color: ACCENT1_LIGHT }}
+        >
           You're a Golden Warrior!
         </Text>
         <Text style={{ color: ACCENT1_LIGHT }}>
@@ -432,14 +511,18 @@ export default function OrderBags() {
           {uncompletedMissionsCount} undelivered bags
         </Text>
 
-        <Text style={{ marginTop: 20, fontWeight: "bold", color: ACCENT1_LIGHT }}>
+        <Text
+          style={{ marginTop: 20, fontWeight: "bold", color: ACCENT1_LIGHT }}
+        >
           Delivery method: Deliver it to me
         </Text>
 
         <View
           style={{ flexDirection: "row", alignItems: "center", marginTop: 20 }}
         >
-          <Text style={{ fontSize: 16, color: ACCENT1_LIGHT }}>Shipping address:</Text>
+          <Text style={{ fontSize: 16, color: ACCENT1_LIGHT }}>
+            Shipping address:
+          </Text>
           <TouchableOpacity
             onPress={() => {
               setEditingAddress(null);
@@ -451,7 +534,9 @@ export default function OrderBags() {
               setAddressModalVisible(true);
             }}
           >
-            <Text style={{ color: ACCENT1_LIGHT, marginLeft: 10 }}>Add new</Text>
+            <Text style={{ color: ACCENT1_LIGHT, marginLeft: 10 }}>
+              Add new
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -459,7 +544,14 @@ export default function OrderBags() {
           <View key={address.id} style={{ marginVertical: 8 }}>
             <ContainerInfoMain minHeight={150} padding={40}>
               <View style={{ width: "100%" }}>
-                <Text style={{ fontSize: 16, fontWeight: "500", marginBottom: 4, color: ACCENT1_LIGHT }}>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "500",
+                    marginBottom: 4,
+                    color: ACCENT1_LIGHT,
+                  }}
+                >
                   {address.addressLine1}
                 </Text>
                 {address.addressLine2 ? (
@@ -503,10 +595,14 @@ export default function OrderBags() {
                       setAddressModalVisible(true);
                     }}
                   >
-                    <Text style={{ color: ACCENT1_LIGHT, fontWeight: "500" }}>Edit</Text>
+                    <Text style={{ color: ACCENT1_LIGHT, fontWeight: "500" }}>
+                      Edit
+                    </Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity onPress={() => handleDeleteAddress(address.id)}>
+                  <TouchableOpacity
+                    onPress={() => handleDeleteAddress(address.id)}
+                  >
                     <Text style={{ color: ACCENT1_LIGHT, fontWeight: "500" }}>
                       Delete
                     </Text>
@@ -527,13 +623,15 @@ export default function OrderBags() {
           </View>
         ))}
 
-        <View style={{ alignItems: 'center', marginTop: 30 }}>
+        <View style={{ alignItems: "center", marginTop: 30 }}>
           <GoldButton
             title="Create Case"
             onPress={handleAddCampaign}
             width={300}
             height={60}
-            style={{ opacity: (!selectedBags || addresses.length === 0) ? 0.5 : 1 }}
+            style={{
+              opacity: !selectedBags || addresses.length === 0 ? 0.5 : 1,
+            }}
           />
         </View>
 
@@ -560,88 +658,57 @@ export default function OrderBags() {
               }}
             >
               <Text
-                style={{ fontSize: 18, fontWeight: "bold", marginBottom: 15, color: ACCENT1_LIGHT }}
+                style={{
+                  fontSize: 18,
+                  fontWeight: "bold",
+                  marginBottom: 15,
+                  color: ACCENT1_LIGHT,
+                }}
               >
                 {editingAddress ? "Edit Address" : "Add New Address"}
               </Text>
 
-              <TextInput
+              <CustomInput
+                label="Address Line 1"
                 placeholder="Address Line 1"
-                placeholderTextColor="#666"
                 value={addressLine1}
                 onChangeText={setAddressLine1}
-                style={{
-                  borderWidth: 1,
-                  borderColor: ACCENT1_LIGHT,
-                  padding: 10,
-                  borderRadius: 100,
-                  marginBottom: 10,
-                  color: ACCENT1_LIGHT,
-                  backgroundColor: 'transparent',
-                }}
-              />
-              <TextInput
-                placeholder="Address Line 2"
-                placeholderTextColor="#666"
-                value={addressLine2}
-                onChangeText={setAddressLine2}
-                style={{
-                  borderWidth: 1,
-                  borderColor: ACCENT1_LIGHT,
-                  padding: 10,
-                  borderRadius: 100,
-                  marginBottom: 10,
-                  color: ACCENT1_LIGHT,
-                  backgroundColor: 'transparent',
-                }}
-              />
-              <TextInput
-                placeholder="City"
-                placeholderTextColor="#666"
-                value={city}
-                onChangeText={setCity}
-                style={{
-                  borderWidth: 1,
-                  borderColor: ACCENT1_LIGHT,
-                  padding: 10,
-                  borderRadius: 100,
-                  marginBottom: 10,
-                  color: ACCENT1_LIGHT,
-                  backgroundColor: 'transparent',
-                }}
-              />
-              <TextInput
-                placeholder="State"
-                placeholderTextColor="#666"
-                value={state}
-                onChangeText={setState}
-                style={{
-                  borderWidth: 1,
-                  borderColor: ACCENT1_LIGHT,
-                  padding: 10,
-                  borderRadius: 100,
-                  marginBottom: 10,
-                  color: ACCENT1_LIGHT,
-                  backgroundColor: 'transparent',
-                }}
-              />
-              <TextInput
-                placeholder="ZIP"
-                placeholderTextColor="#666"
-                value={zip}
-                onChangeText={setZip}
-                style={{
-                  borderWidth: 1,
-                  borderColor: ACCENT1_LIGHT,
-                  padding: 10,
-                  borderRadius: 100,
-                  marginBottom: 20,
-                  color: ACCENT1_LIGHT,
-                  backgroundColor: 'transparent',
-                }}
+                containerStyle={{ marginBottom: 10 }}
               />
 
-              <View style={{ alignItems: 'center' }}>
+              <CustomInput
+                label="Address Line 2"
+                placeholder="Address Line 2"
+                value={addressLine2}
+                onChangeText={setAddressLine2}
+                containerStyle={{ marginBottom: 10 }}
+              />
+
+              <CustomInput
+                label="City"
+                placeholder="City"
+                value={city}
+                onChangeText={setCity}
+                containerStyle={{ marginBottom: 10 }}
+              />
+
+              <CustomInput
+                label="State"
+                placeholder="State"
+                value={state}
+                onChangeText={setState}
+                containerStyle={{ marginBottom: 10 }}
+              />
+
+              <CustomInput
+                label="ZIP"
+                placeholder="ZIP"
+                value={zip}
+                onChangeText={setZip}
+                containerStyle={{ marginBottom: 20 }}
+              />
+
+              <View style={{ alignItems: "center" }}>
                 <GoldButton
                   title={editingAddress ? "Save Changes" : "Add Address"}
                   onPress={handleSaveAddress}

@@ -16,6 +16,15 @@ import {
   updateDoc,
   DocumentReference,
 } from "firebase/firestore";
+import {
+  BACKGROUND1_DARK_MAIN,
+  ACCENT1_LIGHT,
+} from "../../../constants/Colors";
+import GoldButton from "../../../components/ui/GoldButton";
+import BlueButton from "../../../components/ui/BlueButton";
+import GreenButton from "../../../components/ui/GreenButton";
+import ContainerInfoSimple from "../../../components/ui/ContainerInfoSimple";
+import ContainerInfoMain from "../../../components/ui/ContainerInfoMain";
 
 // Типы данных
 
@@ -138,8 +147,13 @@ const DriverCampaignScreen: React.FC = () => {
     );
   }
 
-  const { currentEarnings, potentialEarnings, bagsDelivered, bagsFailed, bagsCount } =
-    driverCampaignData;
+  const {
+    currentEarnings,
+    potentialEarnings,
+    bagsDelivered,
+    bagsFailed,
+    bagsCount,
+  } = driverCampaignData;
 
   const handleNavigateScanBag = () => {
     router.push({
@@ -157,87 +171,91 @@ const DriverCampaignScreen: React.FC = () => {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.headerContainer}>
-        <Image source={{ uri: data.logo }} style={styles.logo} />
-        <View style={styles.headerTextContainer}>
-          <Text style={styles.title}>{data.companyName}</Text>
-          <Text style={styles.text}>
-            <Text style={styles.label}>Area:</Text> {data.area}
-          </Text>
-          <Text style={styles.text}>
-            <Text style={styles.label}>Bags Count:</Text> {bagsCount}
-          </Text>
-          <Text style={styles.text}>
-            <Text style={styles.label}>Status:</Text> {data.status}
-          </Text>
-        </View>
-      </View>
-
-      <Text style={styles.text}>
-        <Text style={styles.label}>Current Earnings:</Text> $
-        {currentEarnings.toFixed(2)}
-      </Text>
-      <Text style={styles.text}>
-        <Text style={styles.label}>Potential Earnings:</Text> $
-        {potentialEarnings.toFixed(2)}
-      </Text>
-      <Text style={styles.text}>
-        <Text style={styles.label}>Missions Completed:</Text> {bagsDelivered}
-      </Text>
-      <Text style={styles.text}>
-        <Text style={styles.label}>Missions Failed:</Text> {bagsFailed}
-      </Text>
-      <Text style={styles.text}>
-        <Text style={styles.label}>Missions Remaining:</Text>{" "}
-        {bagsCount - bagsDelivered - bagsFailed}
-      </Text>
-
-      <View style={{ flexDirection: "row", alignItems: "center" }}>
-        <Text style={styles.text}>
-          <Text style={styles.label}>Target Objective:</Text> {targetObjective}
-        </Text>
-        <TouchableOpacity
-          onPress={() => setShowTooltip(true)}
-          style={{ marginLeft: 5 }}
-        >
-          <Text style={{ fontSize: 18 }}>❓</Text>
-        </TouchableOpacity>
-      </View>
-      <View>
-      {driverCampaignData.shippingAddress && (
-          <>
-            <Text style={styles.label}>Address</Text>
+      <ContainerInfoMain minHeight={200} padding={30}>
+        <View style={styles.headerContainer}>
+          <Image source={{ uri: data.logo }} style={styles.logo} />
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.title}>{data.companyName}</Text>
             <Text style={styles.text}>
-              {`${driverCampaignData.shippingAddress.addressLine1} ${driverCampaignData.shippingAddress.addressLine2}, ${driverCampaignData.shippingAddress.city}, ${driverCampaignData.shippingAddress.state} ${driverCampaignData.shippingAddress.zip}`}
+              <Text style={styles.label}>Area:</Text> {data.area}
             </Text>
-          </>
-        )}
-      </View>
-      {showTooltip && (
-        <Text style={styles.tooltip}>
-          Bags you need to deliver in order to get the highest reward per
-          campaign.
-        </Text>
-      )}
+            <Text style={styles.text}>
+              <Text style={styles.label}>Bags Count:</Text> {bagsCount}
+            </Text>
+            <Text style={styles.text}>
+              <Text style={styles.label}>Status:</Text> {data.status}
+            </Text>
+          </View>
+        </View>
 
-      <TouchableOpacity
-        style={[styles.button, { marginTop: 10, backgroundColor: "#d9534f" }]}
+        <Text style={styles.text}>
+          <Text style={styles.label}>Current Earnings:</Text> $
+          {currentEarnings.toFixed(2)}
+        </Text>
+        <Text style={styles.text}>
+          <Text style={styles.label}>Potential Earnings:</Text> $
+          {potentialEarnings.toFixed(2)}
+        </Text>
+        <Text style={styles.text}>
+          <Text style={styles.label}>Missions Completed:</Text> {bagsDelivered}
+        </Text>
+        <Text style={styles.text}>
+          <Text style={styles.label}>Missions Failed:</Text> {bagsFailed}
+        </Text>
+        <Text style={styles.text}>
+          <Text style={styles.label}>Missions Remaining:</Text>{" "}
+          {bagsCount - bagsDelivered - bagsFailed}
+        </Text>
+
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Text style={styles.text}>
+            <Text style={styles.label}>Target Objective:</Text>{" "}
+            {targetObjective}
+          </Text>
+          <TouchableOpacity
+            onPress={() => setShowTooltip(true)}
+            style={{ marginLeft: 5 }}
+          >
+            <Text style={{ fontSize: 18, color: ACCENT1_LIGHT }}>❓</Text>
+          </TouchableOpacity>
+        </View>
+        <View>
+          {driverCampaignData.shippingAddress && (
+            <>
+              <Text style={styles.label}>Address</Text>
+              <Text style={styles.text}>
+                {`${driverCampaignData.shippingAddress.addressLine1} ${driverCampaignData.shippingAddress.addressLine2}, ${driverCampaignData.shippingAddress.city}, ${driverCampaignData.shippingAddress.state} ${driverCampaignData.shippingAddress.zip}`}
+              </Text>
+            </>
+          )}
+        </View>
+        {showTooltip && (
+          <Text style={styles.tooltip}>
+            Bags you need to deliver in order to get the highest reward per
+            campaign.
+          </Text>
+        )}
+      </ContainerInfoMain>
+
+      <BlueButton
+        title="Complete Case"
         onPress={() => setShowCompletePopup(true)}
-      >
-        <Text style={styles.buttonText}>Complete Case</Text>
-      </TouchableOpacity>
+        width={350}
+        height={70}
+        style={{ marginTop: 20 }}
+      />
 
       {showCompletePopup && (
         <View style={styles.popup}>
           <Text style={styles.popupText}>
             {bagsDelivered < targetObjective
-              ? `If you complete the mission now, the amount of earnings will be halved.\nUncompleted missions will go to the failed status.\n\nYou’ll earn $${(
+              ? `If you complete the mission now, the amount of earnings will be halved.\nUncompleted missions will go to the failed status.\n\nYou'll earn $${(
                   potentialEarnings / 2
                 ).toFixed(2)}`
               : "If you complete the mission now, uncompleted missions will go to the failed status."}
           </Text>
-          <TouchableOpacity
-            style={[styles.button, { marginTop: 15 }]}
+          <BlueButton
+            title="Complete Case"
             onPress={async () => {
               const newStatus = "completed";
               const failed = bagsCount - bagsDelivered;
@@ -254,28 +272,34 @@ const DriverCampaignScreen: React.FC = () => {
               await fetchData();
               setShowCompletePopup(false);
             }}
-          >
-            <Text style={styles.buttonText}>Complete Case</Text>
-          </TouchableOpacity>
+            width={300}
+            height={70}
+            style={{ marginTop: 15 }}
+          />
           <TouchableOpacity
-            style={[styles.button, { marginTop: 10, backgroundColor: "#aaa" }]}
+            style={[styles.cancelButton, { marginTop: 10 }]}
             onPress={() => setShowCompletePopup(false)}
           >
-            <Text style={styles.buttonText}>Cancel</Text>
+            <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
         </View>
       )}
 
-      <TouchableOpacity style={styles.button} onPress={handleNavigateScanBag}>
-        <Text style={styles.buttonText}>Bag an item</Text>
-      </TouchableOpacity>
+      <GoldButton
+        title="Bag an item"
+        onPress={handleNavigateScanBag}
+        width={350}
+        height={70}
+        style={{ marginTop: 20 }}
+      />
 
-      <TouchableOpacity
-        style={[styles.button, { marginTop: 10 }]}
+      <GreenButton
+        title="Reassign campaign"
         onPress={handleNavigateReassign}
-      >
-        <Text style={styles.buttonText}>Reassign campaign</Text>
-      </TouchableOpacity>
+        width={350}
+        height={70}
+        style={{ marginTop: 20 }}
+      />
     </ScrollView>
   );
 };
@@ -285,12 +309,13 @@ export default DriverCampaignScreen;
 const styles = StyleSheet.create({
   container: {
     padding: 20,
-    backgroundColor: "#fff",
+    backgroundColor: BACKGROUND1_DARK_MAIN,
     flexGrow: 1,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
+    backgroundColor: BACKGROUND1_DARK_MAIN,
   },
   headerContainer: {
     flexDirection: "row",
@@ -304,34 +329,25 @@ const styles = StyleSheet.create({
   logo: {
     width: 80,
     height: 80,
-    borderRadius: 12,
+    borderRadius: 40,
   },
   title: {
     fontSize: 20,
     fontWeight: "bold",
     marginBottom: 8,
+    color: ACCENT1_LIGHT,
   },
   text: {
     fontSize: 16,
     marginVertical: 5,
+    color: ACCENT1_LIGHT,
   },
   label: {
     fontWeight: "600",
-  },
-  button: {
-    backgroundColor: "#FFA500",
-    padding: 15,
-    borderRadius: 10,
-    width: "100%",
-    alignItems: "center",
-    marginTop: 20,
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "bold",
+    color: ACCENT1_LIGHT,
   },
   popup: {
-    backgroundColor: "#fff",
+    backgroundColor: BACKGROUND1_DARK_MAIN,
     padding: 20,
     borderRadius: 10,
     elevation: 10, // для Android
@@ -344,16 +360,33 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: ACCENT1_LIGHT,
   },
   popupText: {
     fontSize: 16,
     textAlign: "center",
+    color: ACCENT1_LIGHT,
   },
   tooltip: {
-    backgroundColor: "#eee",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     padding: 10,
     marginTop: 5,
     borderRadius: 8,
     fontSize: 14,
+    color: ACCENT1_LIGHT,
+    borderWidth: 1,
+    borderColor: ACCENT1_LIGHT,
+  },
+  cancelButton: {
+    backgroundColor: "#666",
+    padding: 15,
+    borderRadius: 10,
+    width: "100%",
+    alignItems: "center",
+  },
+  cancelButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
   },
 });

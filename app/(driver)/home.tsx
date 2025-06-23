@@ -436,6 +436,7 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     marginLeft: 10,
+    borderRadius: 35,
   },
   profileRow: {
     flexDirection: "row",
@@ -543,7 +544,7 @@ const styles = StyleSheet.create({
   campaignLogo: {
     width: 80,
     height: 80,
-    borderRadius: 8,
+    borderRadius: 40,
   },
   campaignDetails: {
     flex: 1,

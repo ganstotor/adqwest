@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   SafeAreaView,
   Linking,
   ScrollView,
-} from 'react-native';
+} from "react-native";
 import {
   addDoc,
   collection,
@@ -23,26 +23,33 @@ import {
   Timestamp,
   where,
   updateDoc,
-} from 'firebase/firestore';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { db } from '../../../firebaseConfig';
-import Typography from '../../../components/ui/Typography';
-import GoldButton from '../../../components/ui/GoldButton';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
-import { ACCENT1_LIGHT, ACCENT2_LIGHT, BACKGROUND1_LIGHT, WHITE } from '../../../constants/Colors';
-import { Ionicons } from '@expo/vector-icons';
+} from "firebase/firestore";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { db } from "../../../firebaseConfig";
+import Typography from "../../../components/ui/Typography";
+import GoldButton from "../../../components/ui/GoldButton";
+import BlueButton from "../../../components/ui/BlueButton";
+import CustomInput from "../../../components/ui/CustomInput";
+import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
+import {
+  ACCENT1_LIGHT,
+  ACCENT2_LIGHT,
+  BACKGROUND1_LIGHT,
+  WHITE,
+} from "../../../constants/Colors";
+import { Ionicons } from "@expo/vector-icons";
 
 const SupportPage = () => {
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [chatModalVisible, setChatModalVisible] = useState(false);
-  const [subject, setSubject] = useState('');
-  const [message, setMessage] = useState('');
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
   const [tickets, setTickets] = useState<any[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
-  const [chatInput, setChatInput] = useState('');
+  const [chatInput, setChatInput] = useState("");
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
-  const [newTicket, setNewTicket] = useState({ title: '', description: '' });
+  const [newTicket, setNewTicket] = useState({ title: "", description: "" });
 
   const auth = getAuth();
 
@@ -51,22 +58,22 @@ const SupportPage = () => {
     const user = auth.currentUser;
     if (!user || !subject.trim() || !message.trim()) return;
 
-    const ticketRef = await addDoc(collection(db, 'support'), {
+    const ticketRef = await addDoc(collection(db, "support"), {
       subject,
-      status: 'active',
+      status: "active",
       userId: user.uid,
       createdAt: Timestamp.now(),
     });
 
-    await addDoc(collection(db, 'support', ticketRef.id, 'messages'), {
+    await addDoc(collection(db, "support", ticketRef.id, "messages"), {
       text: message,
-      sender: 'user',
+      sender: "user",
       createdAt: Timestamp.now(),
     });
 
     setCreateModalVisible(false);
-    setSubject('');
-    setMessage('');
+    setSubject("");
+    setMessage("");
   };
 
   // Load tickets for current user
@@ -75,9 +82,9 @@ const SupportPage = () => {
       if (!user) return;
 
       const q = query(
-        collection(db, 'support'),
-        where('userId', '==', user.uid),
-        orderBy('createdAt', 'desc')
+        collection(db, "support"),
+        where("userId", "==", user.uid),
+        orderBy("createdAt", "desc")
       );
 
       const unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
@@ -95,8 +102,8 @@ const SupportPage = () => {
     setSelectedTicket(ticket);
     setChatModalVisible(true);
 
-    const msgsRef = collection(db, 'support', ticket.id, 'messages');
-    const q = query(msgsRef, orderBy('createdAt', 'asc'));
+    const msgsRef = collection(db, "support", ticket.id, "messages");
+    const q = query(msgsRef, orderBy("createdAt", "asc"));
 
     const unsub = onSnapshot(q, (snap) => {
       setMessages(snap.docs.map((d) => d.data()));
@@ -109,24 +116,24 @@ const SupportPage = () => {
   const sendMessage = async () => {
     if (!chatInput.trim() || !selectedTicket) return;
 
-    await addDoc(collection(db, 'support', selectedTicket.id, 'messages'), {
+    await addDoc(collection(db, "support", selectedTicket.id, "messages"), {
       text: chatInput,
-      sender: 'user',
+      sender: "user",
       createdAt: Timestamp.now(),
     });
 
-    setChatInput('');
+    setChatInput("");
   };
 
   // Close ticket
   const closeTicket = async () => {
     if (!selectedTicket) return;
 
-    await updateDoc(doc(db, 'support', selectedTicket.id), {
-      status: 'closed',
+    await updateDoc(doc(db, "support", selectedTicket.id), {
+      status: "closed",
     });
 
-    setSelectedTicket((prev: any) => ({ ...prev, status: 'closed' }));
+    setSelectedTicket((prev: any) => ({ ...prev, status: "closed" }));
   };
 
   const toggleSection = (section: string) => {
@@ -164,7 +171,18 @@ const SupportPage = () => {
 
   return (
     <View style={{ flex: 1 }}>
-      <Svg height="100%" width="100%" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: -1 }}>
+      <Svg
+        height="100%"
+        width="100%"
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: -1,
+        }}
+      >
         <Defs>
           <LinearGradient id="bgGradient" x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0%" stopColor="#02010C" />
@@ -176,7 +194,9 @@ const SupportPage = () => {
 
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <Typography variant="h4" style={styles.title}>Support</Typography>
+          <Typography variant="h4" style={styles.title}>
+            Support
+          </Typography>
           <GoldButton
             title="Create Ticket"
             onPress={() => setCreateModalVisible(true)}
@@ -196,7 +216,12 @@ const SupportPage = () => {
                 <Typography variant="h6" style={styles.ticketTitle}>
                   {item.title}
                 </Typography>
-                <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
+                <View
+                  style={[
+                    styles.statusBadge,
+                    { backgroundColor: getStatusColor(item.status) },
+                  ]}
+                >
                   <Typography variant="caption" style={styles.statusText}>
                     {item.status}
                   </Typography>
@@ -216,35 +241,45 @@ const SupportPage = () => {
         >
           <View style={styles.modalContainer}>
             <View style={styles.modalContent}>
-              <Typography variant="h5" style={styles.modalTitle}>Create New Ticket</Typography>
-              
-              <TextInput
-                style={styles.input}
+              <Typography variant="h5" style={styles.modalTitle}>
+                Create New Ticket
+              </Typography>
+
+              <CustomInput
+                label="Title"
                 placeholder="Title"
-                placeholderTextColor={WHITE}
                 value={newTicket.title}
-                onChangeText={(text) => setNewTicket({ ...newTicket, title: text })}
+                onChangeText={(text) =>
+                  setNewTicket({ ...newTicket, title: text })
+                }
+                containerStyle={styles.modalInputContainer}
               />
-              
-              <TextInput
-                style={[styles.input, styles.textArea]}
+
+              <CustomInput
+                label="Description"
                 placeholder="Description"
-                placeholderTextColor={WHITE}
                 multiline
                 value={newTicket.description}
-                onChangeText={(text) => setNewTicket({ ...newTicket, description: text })}
+                onChangeText={(text) =>
+                  setNewTicket({ ...newTicket, description: text })
+                }
+                containerStyle={styles.modalInputContainer}
+                style={styles.textArea}
               />
 
               <View style={styles.modalButtons}>
                 <GoldButton
-                  title="Cancel"
-                  onPress={() => setCreateModalVisible(false)}
-                  style={styles.modalButton}
-                />
-                <GoldButton
                   title="Create"
                   onPress={handleCreateTicket}
-                  style={styles.modalButton}
+                  width={300}
+                  height={70}
+                  style={{ marginBottom: 15 }}
+                />
+                <BlueButton
+                  title="Cancel"
+                  onPress={() => setCreateModalVisible(false)}
+                  width={300}
+                  height={70}
                 />
               </View>
             </View>
@@ -271,10 +306,14 @@ const SupportPage = () => {
                 data={messages}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
-                  <View style={[
-                    styles.messageContainer,
-                    item.sender === 'user' ? styles.userMessage : styles.supportMessage
-                  ]}>
+                  <View
+                    style={[
+                      styles.messageContainer,
+                      item.sender === "user"
+                        ? styles.userMessage
+                        : styles.supportMessage,
+                    ]}
+                  >
                     <Typography variant="body2" style={styles.messageText}>
                       {item.text}
                     </Typography>
@@ -308,12 +347,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: 'transparent',
+    backgroundColor: "transparent",
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 20,
   },
   title: {
@@ -331,9 +370,9 @@ const styles = StyleSheet.create({
     borderColor: ACCENT2_LIGHT,
   },
   ticketHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 10,
   },
   ticketTitle: {
@@ -354,15 +393,15 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   modalContent: {
     backgroundColor: BACKGROUND1_LIGHT,
     borderRadius: 12,
     padding: 20,
-    width: '90%',
+    width: "90%",
     maxWidth: 400,
     borderWidth: 1,
     borderColor: ACCENT2_LIGHT,
@@ -370,31 +409,23 @@ const styles = StyleSheet.create({
   modalTitle: {
     marginBottom: 20,
   },
-  input: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 10,
-    padding: 15,
+  modalInputContainer: {
     marginBottom: 15,
-    color: WHITE,
-    borderWidth: 1,
-    borderColor: ACCENT2_LIGHT,
-  },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
   },
   modalButtons: {
-    flexDirection: 'column',
-    gap: 12,
+    flexDirection: "column",
+    alignItems: "center",
     marginTop: 20,
   },
-  modalButton: {
-    minWidth: 100,
+  textArea: {
+    height: 150,
+    textAlignVertical: "top",
+    borderRadius: 20,
   },
   chatHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 20,
   },
   chatTitle: {
@@ -404,15 +435,15 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 10,
     marginBottom: 10,
-    maxWidth: '80%',
+    maxWidth: "80%",
   },
   userMessage: {
     backgroundColor: ACCENT2_LIGHT,
-    alignSelf: 'flex-end',
+    alignSelf: "flex-end",
   },
   supportMessage: {
     backgroundColor: BACKGROUND1_LIGHT,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     borderWidth: 1,
     borderColor: ACCENT2_LIGHT,
   },
@@ -420,14 +451,14 @@ const styles = StyleSheet.create({
     color: BACKGROUND1_LIGHT,
   },
   chatInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: 20,
     gap: 10,
   },
   chatInput: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderRadius: 10,
     padding: 15,
     color: WHITE,
