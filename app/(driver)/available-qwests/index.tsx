@@ -10,6 +10,8 @@ import {
 } from "react-native";
 import { Link } from "expo-router";
 import BurgerMenu from "../../../components/ui/BurgerMenu";
+import GoldButton from "../../../components/ui/GoldButton";
+import ContainerInfoMain from "../../../components/ui/ContainerInfoMain";
 import { getAuth } from "firebase/auth";
 import {
   getFirestore,
@@ -20,6 +22,7 @@ import {
   query,
   orderBy,
 } from "firebase/firestore";
+import { BACKGROUND1_DARK_MAIN, ACCENT1_LIGHT } from "../../../constants/Colors";
 
 interface UserAdData {
   companyName?: string;
@@ -156,18 +159,18 @@ const OrderBagsScreen = () => {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" />
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: BACKGROUND1_DARK_MAIN }}>
+        <ActivityIndicator size="large" color={ACCENT1_LIGHT} />
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: BACKGROUND1_DARK_MAIN }}>
       <View style={{ padding: 20, flex: 1 }}>
         {campaigns.length > 0 ? (
           <>
-            <Text style={{ fontSize: 20, fontWeight: "bold", marginBottom: 10 }}>
+            <Text style={{ fontSize: 20, fontWeight: "bold", marginBottom: 10, color: ACCENT1_LIGHT }}>
               Good news! There are available campaigns in your preferred areas.
               Choose one and order bags.
             </Text>
@@ -176,75 +179,69 @@ const OrderBagsScreen = () => {
               data={campaigns}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
-                <TouchableOpacity
-                  onPress={() => handleOrderBags(item)}
-                  style={{
-                    padding: 10,
-                    borderWidth: 1,
-                    borderRadius: 8,
-                    marginBottom: 10,
-                    backgroundColor: "#f9f9f9",
-                  }}
-                >
-                  {item.logo && (
-                    <Image
-                      source={{ uri: item.logo }}
+                <View style={{ marginBottom: 20 }}>
+                  <ContainerInfoMain minHeight={200} padding={40}>
+                    <TouchableOpacity
+                      onPress={() => handleOrderBags(item)}
                       style={{
-                        width: 80,
-                        height: 80,
-                        resizeMode: "contain",
-                        marginBottom: 10,
+                        width: "100%",
                       }}
-                    />
-                  )}
-                  {item.companyName && (
-                    <Text
-                      style={{ fontSize: 16, fontWeight: "700", marginBottom: 5 }}
                     >
-                      {item.companyName}
-                    </Text>
-                  )}
-                  {typeof item.remainingBags === "number" &&
-                    typeof item.bagsCount === "number" && (
-                      <Text style={{ marginBottom: 5 }}>
-                        Remaining bags: {item.remainingBags} / {item.bagsCount}
+                      {item.logo && (
+                        <Image
+                          source={{ uri: item.logo }}
+                          style={{
+                            width: 80,
+                            height: 80,
+                            resizeMode: "contain",
+                            marginBottom: 10,
+                          }}
+                        />
+                      )}
+                      {item.companyName && (
+                        <Text
+                          style={{ fontSize: 16, fontWeight: "700", marginBottom: 5, color: ACCENT1_LIGHT }}
+                        >
+                          {item.companyName}
+                        </Text>
+                      )}
+                      {typeof item.remainingBags === "number" &&
+                        typeof item.bagsCount === "number" && (
+                          <Text style={{ marginBottom: 5, color: ACCENT1_LIGHT }}>
+                            Remaining bags: {item.remainingBags} / {item.bagsCount}
+                          </Text>
+                        )}
+                      <Text style={{ color: ACCENT1_LIGHT }}>
+                        Area:{" "}
+                        {item.nation
+                          ? "Nationwide"
+                          : item.states?.length
+                          ? item.states.join(", ")
+                          : item.zipCodes?.length
+                          ? item.zipCodes.join(", ")
+                          : "Unknown"}
                       </Text>
-                    )}
-                  <Text>
-                    Area:{" "}
-                    {item.nation
-                      ? "Nationwide"
-                      : item.states?.length
-                      ? item.states.join(", ")
-                      : item.zipCodes?.length
-                      ? item.zipCodes.join(", ")
-                      : "Unknown"}
-                  </Text>
-                </TouchableOpacity>
+                    </TouchableOpacity>
+                  </ContainerInfoMain>
+                </View>
               )}
             />
           </>
         ) : (
           <View>
-            <Text style={{ fontSize: 20, fontWeight: "bold", marginBottom: 10 }}>
+            <Text style={{ fontSize: 20, fontWeight: "bold", marginBottom: 10, color: ACCENT1_LIGHT }}>
               There are no campaigns available in your area yet.
             </Text>
-            <Text style={{ marginBottom: 5 }}>Don't you worry!</Text>
-            <Text style={{ marginBottom: 15 }}>
+            <Text style={{ marginBottom: 5, color: ACCENT1_LIGHT }}>Don't you worry!</Text>
+            <Text style={{ marginBottom: 15, color: ACCENT1_LIGHT }}>
               We're coming to your area soon! :)
             </Text>
-            <TouchableOpacity
-              style={{
-                padding: 10,
-                backgroundColor: "#007aff",
-                borderRadius: 6,
-              }}
+            <GoldButton
+              title="Would you like to choose a different area?"
               onPress={() => router.push("/(driver)/profile/location")}
-            >
-              <Text style={{ color: "white", textAlign: "center" }}>
-                Would you like to choose a different area?
-              </Text>
-            </TouchableOpacity>
+              width={300}
+              height={60}
+            />
           </View>
         )}
       </View>

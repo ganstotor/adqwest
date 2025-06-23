@@ -24,6 +24,11 @@ import {
 } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { TextInput, ScrollView } from "react-native";
+import GoldButton from "../../../components/ui/GoldButton";
+import BlueButton from "../../../components/ui/BlueButton";
+import ContainerInfoMain from "../../../components/ui/ContainerInfoMain";
+import { BACKGROUND1_DARK_MAIN, ACCENT1_LIGHT, ACCENT1_DARK, ACCENT2_DARK } from "../../../constants/Colors";
+import Svg, { Path, Defs, RadialGradient, Stop, Rect } from "react-native-svg";
 
 type AddressType = {
   id: string;
@@ -43,7 +48,7 @@ export default function OrderBags() {
   const [rank, setRank] = useState<string | null>(null);
   const [uncompletedMissionsCount, setUncompletedMissionsCount] =
     useState<number>(0);
-  const [selectedBags, setSelectedBags] = useState<number | null>(null);
+  const [selectedBags, setSelectedBags] = useState<number>(25);
   const [deliveryOption] = useState<"mail">("mail");
   const [remainingBags, setRemainingBags] = useState<number | null>(null);
   const [bagsCount, setBagsCount] = useState<number | null>(null);
@@ -283,333 +288,382 @@ export default function OrderBags() {
   };  
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 20 }}>
-      {logo && (
-        <Image
-          source={{ uri: logo }}
-          style={{ width: 100, height: 100, resizeMode: "contain" }}
-        />
-      )}
-      {companyName && (
-        <Text style={{ fontSize: 20, fontWeight: "bold", marginTop: 10 }}>
-          {companyName}
-        </Text>
-      )}
-      {remainingBags !== null && bagsCount !== null && (
-        <Text style={{ marginTop: 5, fontWeight: "bold" }}>
-          Remaining bags: {remainingBags} / {bagsCount}
-        </Text>
-      )}
+    <View style={{ flex: 1, backgroundColor: BACKGROUND1_DARK_MAIN }}>
+      <ScrollView contentContainerStyle={{ padding: 20, flexGrow: 1 }}>
+        {/* Блок с логотипом и информацией о кампании */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
+          {logo && (
+            <Image
+              source={{ uri: logo }}
+              style={{ 
+                width: 80, 
+                height: 80, 
+                resizeMode: "cover",
+                borderRadius: 40,
+                marginRight: 15
+              }}
+            />
+          )}
+          <View style={{ flex: 1 }}>
+            {companyName && (
+              <Text style={{ fontSize: 18, fontWeight: "bold", color: ACCENT1_LIGHT, marginBottom: 5 }}>
+                {companyName}
+              </Text>
+            )}
+            {remainingBags !== null && bagsCount !== null && (
+              <Text style={{ fontWeight: "bold", color: ACCENT1_LIGHT, marginBottom: 3 }}>
+                Remaining bags: {remainingBags} / {bagsCount}
+              </Text>
+            )}
+            {area && <Text style={{ color: ACCENT1_LIGHT, fontSize: 14 }}>{area}</Text>}
+          </View>
+        </View>
 
-      {area && <Text style={{ marginTop: 5 }}>{area}</Text>}
-
-      <Text style={{ marginTop: 20 }}>Choose number of bags:</Text>
-      {rank && (
-        <View
-          style={{
-            flexDirection: "row",
-            flexWrap: "wrap",
-            gap: 10,
-            marginVertical: 10,
-          }}
-        >
-          {[25, 50, 100, 200, 500].map((num) => {
-            const rankValues = rankLimits[rank] || [];
-            const maxAllowed = Math.max(...rankValues);
-            const remainingByRank = maxAllowed - uncompletedMissionsCount;
-            const isWithinRank =
-              rankValues.includes(num) && num <= remainingByRank;
-            const isWithinCampaign =
-              remainingBags !== null && num <= remainingBags;
-            const isAvailable = isWithinRank && isWithinCampaign;
-            const isSelected = selectedBags === num;
-
-            const handlePress = () => {
-              if (!isAvailable) {
-                let reason = "";
-                if (!isWithinRank) {
-                  reason = `Your current limit is ${remainingByRank} bags`;
-                } else if (!isWithinCampaign) {
-                  reason = `Only ${remainingBags} bags are left in the campaign`;
-                }
-                Alert.alert("Unavailable", reason);
-              } else {
-                setSelectedBags(num);
-              }
-            };
-
-            return (
-              <TouchableOpacity
-                key={num}
-                onPress={handlePress}
+        <Text style={{ marginTop: 20, color: ACCENT1_LIGHT }}>Choose number of bags:</Text>
+        
+        {/* Стилизованный блок выбора количества сумок - адаптивный */}
+        <View style={{ marginVertical: 10 }}>
+          <Svg width="100%" height="117" viewBox="0 0 521 117" style={{ width: "100%", height: 117 }}>
+            <Path d="M24.5208 1L1 25.3121V93.2315L23.364 116H497.25L520 92.8456V24.9262L496.094 1H24.5208Z" stroke="#F1AF07"/>
+            <Path d="M27.9913 7.94629L8.71191 27.2416V90.1443L27.6057 109.054H493.78L512.288 90.1443V27.6275L493.009 7.94629H27.9913Z" stroke="#F1AF07" strokeWidth="2"/>
+          </Svg>
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' }}>
+            {rank && (
+              <View
                 style={{
-                  padding: 12,
-                  margin: 5,
-                  backgroundColor: !isAvailable
-                    ? "#ccc"
-                    : isSelected
-                    ? "#388E3C"
-                    : "#A5D6A7",
-                  borderRadius: 8,
+                  flexDirection: "row",
+                  flexWrap: "wrap",
+                  gap: 8,
+                  justifyContent: "space-around",
+                  paddingHorizontal: 10,
+                  width: "100%",
                 }}
               >
-                <Text style={{ color: "#fff", fontWeight: "bold" }}>{num}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      )}
+                {[25, 50, 100, 200, 500].map((num) => {
+                  const rankValues = rankLimits[rank] || [];
+                  const maxAllowed = Math.max(...rankValues);
+                  const remainingByRank = maxAllowed - uncompletedMissionsCount;
+                  const isWithinRank =
+                    rankValues.includes(num) && num <= remainingByRank;
+                  const isWithinCampaign =
+                    remainingBags !== null && num <= remainingBags;
+                  const isAvailable = isWithinRank && isWithinCampaign;
+                  const isSelected = selectedBags === num;
 
-      <Text style={{ fontWeight: "bold", marginTop: 15 }}>
-        You’re a Golden Warrior!
-      </Text>
-      <Text>
-        Your current limit is {maxBags()} bags. You currently have{" "}
-        {uncompletedMissionsCount} undelivered bags
-      </Text>
+                  const handlePress = () => {
+                    if (!isAvailable) {
+                      let reason = "";
+                      if (!isWithinRank) {
+                        reason = `Your current limit is ${remainingByRank} bags`;
+                      } else if (!isWithinCampaign) {
+                        reason = `Only ${remainingBags} bags are left in the campaign`;
+                      }
+                      Alert.alert("Unavailable", reason);
+                    } else {
+                      setSelectedBags(num);
+                    }
+                  };
 
-      <Text style={{ marginTop: 20, fontWeight: "bold" }}>
-        Delivery method: Deliver it to me
-      </Text>
-
-      <View
-        style={{ flexDirection: "row", alignItems: "center", marginTop: 20 }}
-      >
-        <Text style={{ fontSize: 16 }}>Shipping address:</Text>
-        <TouchableOpacity
-          onPress={() => {
-            setEditingAddress(null);
-            setAddressLine1("");
-            setAddressLine2("");
-            setCity("");
-            setState("");
-            setZip("");
-            setAddressModalVisible(true);
-          }}
-        >
-          <Text style={{ color: "blue", marginLeft: 10 }}>Add new</Text>
-        </TouchableOpacity>
-      </View>
-
-      {addresses.map((address) => (
-        <View
-          key={address.id}
-          style={{
-            padding: 15,
-            marginVertical: 8,
-            borderWidth: 1,
-            borderColor: address.isPrimary ? "#4CAF50" : "#BDBDBD",
-            borderRadius: 10,
-            backgroundColor: address.isPrimary ? "#E8F5E9" : "#F5F5F5",
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-            elevation: 2,
-          }}
-        >
-          <Text style={{ fontSize: 16, fontWeight: "500", marginBottom: 4 }}>
-            {address.addressLine1}
-          </Text>
-          {address.addressLine2 ? (
-            <Text style={{ fontSize: 14, color: "#616161" }}>
-              {address.addressLine2}
-            </Text>
-          ) : null}
-          <Text style={{ fontSize: 14, color: "#616161" }}>
-            {address.city}, {address.state} {address.zip}
-          </Text>
-
-          {address.isPrimary && (
-            <Text
-              style={{
-                color: "#388E3C",
-                marginTop: 6,
-                fontWeight: "bold",
-                fontSize: 13,
-              }}
-            >
-              Primary Address
-            </Text>
-          )}
-
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "flex-start",
-              gap: 16,
-              marginTop: 10,
-            }}
-          >
-            <TouchableOpacity
-              onPress={() => {
-                setEditingAddress(address);
-                setAddressLine1(address.addressLine1);
-                setAddressLine2(address.addressLine2);
-                setCity(address.city);
-                setState(address.state);
-                setZip(address.zip);
-                setAddressModalVisible(true);
-              }}
-            >
-              <Text style={{ color: "#1976D2", fontWeight: "500" }}>Edit</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={() => handleDeleteAddress(address.id)}>
-              <Text style={{ color: "#D32F2F", fontWeight: "500" }}>
-                Delete
-              </Text>
-            </TouchableOpacity>
-
-            {!address.isPrimary && (
-              <TouchableOpacity
-                onPress={() => handleSetPrimaryAddress(address.id)}
-              >
-                <Text style={{ color: "#388E3C", fontWeight: "500" }}>
-                  Set as Primary
-                </Text>
-              </TouchableOpacity>
+                  return (
+                    <TouchableOpacity
+                      key={num}
+                      onPress={handlePress}
+                      style={{
+                        width: 50,
+                        height: 50,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        borderWidth: 2,
+                        borderColor: ACCENT2_DARK,
+                        borderRadius: 16,
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <View style={{ width: '100%', height: '100%', position: 'relative' }}>
+                        {isSelected && (
+                          <Svg width="100%" height="100%" viewBox="0 0 50 50" style={{ width: '100%', height: '100%' }} fill="none">
+                            <Defs>
+                              <RadialGradient
+                                id={`paint0_radial_${num}`}
+                                cx="0.5"
+                                cy="0.5"
+                                r="0.5"
+                                gradientUnits="objectBoundingBox"
+                              >
+                                <Stop offset="0" stopColor="#106D68" />
+                                <Stop offset="1" stopColor="#00030F" />
+                              </RadialGradient>
+                            </Defs>
+                            <Rect x="0" y="0" width="50" height="50" rx="25" fill={`url(#paint0_radial_${num})`} />
+                          </Svg>
+                        )}
+                        <View style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          zIndex: 1,
+                        }}>
+                          <Text style={{ 
+                            color: isAvailable ? ACCENT1_DARK : '#666',
+                            fontWeight: "bold",
+                            fontSize: 14,
+                          }}>
+                            {num}
+                          </Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             )}
           </View>
         </View>
-      ))}
 
-      <TouchableOpacity
-        onPress={handleAddCampaign}
-        disabled={!selectedBags || addresses.length === 0}
-        style={{
-          marginTop: 30,
-          padding: 15,
-          backgroundColor:
-            selectedBags && addresses.length > 0 ? "#2196F3" : "#ccc",
-          borderRadius: 10,
-        }}
-      >
-        <Text
-          style={{ color: "#fff", textAlign: "center", fontWeight: "bold" }}
-        >
-          Create Case
+        <Text style={{ fontWeight: "bold", marginTop: 15, color: ACCENT1_LIGHT }}>
+          You're a Golden Warrior!
         </Text>
-      </TouchableOpacity>
+        <Text style={{ color: ACCENT1_LIGHT }}>
+          Your current limit is {maxBags()} bags. You currently have{" "}
+          {uncompletedMissionsCount} undelivered bags
+        </Text>
 
-      <Modal visible={addressModalVisible} animationType="slide" transparent>
+        <Text style={{ marginTop: 20, fontWeight: "bold", color: ACCENT1_LIGHT }}>
+          Delivery method: Deliver it to me
+        </Text>
+
         <View
-          style={{
-            flex: 1,
-            justifyContent: "center",
-            alignItems: "center",
-            backgroundColor: "rgba(0,0,0,0.5)",
-          }}
+          style={{ flexDirection: "row", alignItems: "center", marginTop: 20 }}
         >
-          <View
-            style={{
-              backgroundColor: "white",
-              padding: 25,
-              borderRadius: 12,
-              width: "90%",
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.2,
-              shadowRadius: 6,
-              elevation: 5,
+          <Text style={{ fontSize: 16, color: ACCENT1_LIGHT }}>Shipping address:</Text>
+          <TouchableOpacity
+            onPress={() => {
+              setEditingAddress(null);
+              setAddressLine1("");
+              setAddressLine2("");
+              setCity("");
+              setState("");
+              setZip("");
+              setAddressModalVisible(true);
             }}
           >
-            <Text
-              style={{ fontSize: 18, fontWeight: "bold", marginBottom: 15 }}
-            >
-              {editingAddress ? "Edit Address" : "Add New Address"}
-            </Text>
-
-            <TextInput
-              placeholder="Address Line 1"
-              value={addressLine1}
-              onChangeText={setAddressLine1}
-              style={{
-                borderWidth: 1,
-                borderColor: "#ccc",
-                padding: 10,
-                borderRadius: 8,
-                marginBottom: 10,
-              }}
-            />
-            <TextInput
-              placeholder="Address Line 2"
-              value={addressLine2}
-              onChangeText={setAddressLine2}
-              style={{
-                borderWidth: 1,
-                borderColor: "#ccc",
-                padding: 10,
-                borderRadius: 8,
-                marginBottom: 10,
-              }}
-            />
-            <TextInput
-              placeholder="City"
-              value={city}
-              onChangeText={setCity}
-              style={{
-                borderWidth: 1,
-                borderColor: "#ccc",
-                padding: 10,
-                borderRadius: 8,
-                marginBottom: 10,
-              }}
-            />
-            <TextInput
-              placeholder="State"
-              value={state}
-              onChangeText={setState}
-              style={{
-                borderWidth: 1,
-                borderColor: "#ccc",
-                padding: 10,
-                borderRadius: 8,
-                marginBottom: 10,
-              }}
-            />
-            <TextInput
-              placeholder="ZIP"
-              value={zip}
-              onChangeText={setZip}
-              style={{
-                borderWidth: 1,
-                borderColor: "#ccc",
-                padding: 10,
-                borderRadius: 8,
-                marginBottom: 20,
-              }}
-            />
-
-            <TouchableOpacity
-              onPress={handleSaveAddress}
-              style={{
-                backgroundColor: "#388E3C",
-                paddingVertical: 12,
-                borderRadius: 8,
-                alignItems: "center",
-              }}
-            >
-              <Text style={{ color: "white", fontWeight: "bold" }}>
-                {editingAddress ? "Save Changes" : "Add Address"}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => {
-                setAddressModalVisible(false);
-                setEditingAddress(null);
-              }}
-              style={{
-                marginTop: 12,
-                alignItems: "center",
-              }}
-            >
-              <Text style={{ color: "#757575" }}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
+            <Text style={{ color: ACCENT1_LIGHT, marginLeft: 10 }}>Add new</Text>
+          </TouchableOpacity>
         </View>
-      </Modal>
-    </ScrollView>
+
+        {addresses.map((address) => (
+          <View key={address.id} style={{ marginVertical: 8 }}>
+            <ContainerInfoMain minHeight={150} padding={40}>
+              <View style={{ width: "100%" }}>
+                <Text style={{ fontSize: 16, fontWeight: "500", marginBottom: 4, color: ACCENT1_LIGHT }}>
+                  {address.addressLine1}
+                </Text>
+                {address.addressLine2 ? (
+                  <Text style={{ fontSize: 14, color: ACCENT1_LIGHT }}>
+                    {address.addressLine2}
+                  </Text>
+                ) : null}
+                <Text style={{ fontSize: 14, color: ACCENT1_LIGHT }}>
+                  {address.city}, {address.state} {address.zip}
+                </Text>
+
+                {address.isPrimary && (
+                  <Text
+                    style={{
+                      color: ACCENT1_LIGHT,
+                      marginTop: 6,
+                      fontWeight: "bold",
+                      fontSize: 13,
+                    }}
+                  >
+                    Primary Address
+                  </Text>
+                )}
+
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "flex-start",
+                    gap: 16,
+                    marginTop: 10,
+                  }}
+                >
+                  <TouchableOpacity
+                    onPress={() => {
+                      setEditingAddress(address);
+                      setAddressLine1(address.addressLine1);
+                      setAddressLine2(address.addressLine2);
+                      setCity(address.city);
+                      setState(address.state);
+                      setZip(address.zip);
+                      setAddressModalVisible(true);
+                    }}
+                  >
+                    <Text style={{ color: ACCENT1_LIGHT, fontWeight: "500" }}>Edit</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity onPress={() => handleDeleteAddress(address.id)}>
+                    <Text style={{ color: ACCENT1_LIGHT, fontWeight: "500" }}>
+                      Delete
+                    </Text>
+                  </TouchableOpacity>
+
+                  {!address.isPrimary && (
+                    <TouchableOpacity
+                      onPress={() => handleSetPrimaryAddress(address.id)}
+                    >
+                      <Text style={{ color: ACCENT1_LIGHT, fontWeight: "500" }}>
+                        Set as Primary
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            </ContainerInfoMain>
+          </View>
+        ))}
+
+        <View style={{ alignItems: 'center', marginTop: 30 }}>
+          <GoldButton
+            title="Create Case"
+            onPress={handleAddCampaign}
+            width={300}
+            height={60}
+            style={{ opacity: (!selectedBags || addresses.length === 0) ? 0.5 : 1 }}
+          />
+        </View>
+
+        <Modal visible={addressModalVisible} animationType="slide" transparent>
+          <View
+            style={{
+              flex: 1,
+              justifyContent: "center",
+              alignItems: "center",
+              backgroundColor: "rgba(0,0,0,0.5)",
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: BACKGROUND1_DARK_MAIN,
+                padding: 25,
+                borderRadius: 12,
+                width: "90%",
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.2,
+                shadowRadius: 6,
+                elevation: 5,
+              }}
+            >
+              <Text
+                style={{ fontSize: 18, fontWeight: "bold", marginBottom: 15, color: ACCENT1_LIGHT }}
+              >
+                {editingAddress ? "Edit Address" : "Add New Address"}
+              </Text>
+
+              <TextInput
+                placeholder="Address Line 1"
+                placeholderTextColor="#666"
+                value={addressLine1}
+                onChangeText={setAddressLine1}
+                style={{
+                  borderWidth: 1,
+                  borderColor: ACCENT1_LIGHT,
+                  padding: 10,
+                  borderRadius: 100,
+                  marginBottom: 10,
+                  color: ACCENT1_LIGHT,
+                  backgroundColor: 'transparent',
+                }}
+              />
+              <TextInput
+                placeholder="Address Line 2"
+                placeholderTextColor="#666"
+                value={addressLine2}
+                onChangeText={setAddressLine2}
+                style={{
+                  borderWidth: 1,
+                  borderColor: ACCENT1_LIGHT,
+                  padding: 10,
+                  borderRadius: 100,
+                  marginBottom: 10,
+                  color: ACCENT1_LIGHT,
+                  backgroundColor: 'transparent',
+                }}
+              />
+              <TextInput
+                placeholder="City"
+                placeholderTextColor="#666"
+                value={city}
+                onChangeText={setCity}
+                style={{
+                  borderWidth: 1,
+                  borderColor: ACCENT1_LIGHT,
+                  padding: 10,
+                  borderRadius: 100,
+                  marginBottom: 10,
+                  color: ACCENT1_LIGHT,
+                  backgroundColor: 'transparent',
+                }}
+              />
+              <TextInput
+                placeholder="State"
+                placeholderTextColor="#666"
+                value={state}
+                onChangeText={setState}
+                style={{
+                  borderWidth: 1,
+                  borderColor: ACCENT1_LIGHT,
+                  padding: 10,
+                  borderRadius: 100,
+                  marginBottom: 10,
+                  color: ACCENT1_LIGHT,
+                  backgroundColor: 'transparent',
+                }}
+              />
+              <TextInput
+                placeholder="ZIP"
+                placeholderTextColor="#666"
+                value={zip}
+                onChangeText={setZip}
+                style={{
+                  borderWidth: 1,
+                  borderColor: ACCENT1_LIGHT,
+                  padding: 10,
+                  borderRadius: 100,
+                  marginBottom: 20,
+                  color: ACCENT1_LIGHT,
+                  backgroundColor: 'transparent',
+                }}
+              />
+
+              <View style={{ alignItems: 'center' }}>
+                <GoldButton
+                  title={editingAddress ? "Save Changes" : "Add Address"}
+                  onPress={handleSaveAddress}
+                  width={250}
+                  height={50}
+                />
+
+                <BlueButton
+                  title="Cancel"
+                  onPress={() => {
+                    setAddressModalVisible(false);
+                    setEditingAddress(null);
+                  }}
+                  width={250}
+                  height={50}
+                  style={{ marginTop: 12 }}
+                />
+              </View>
+            </View>
+          </View>
+        </Modal>
+      </ScrollView>
+    </View>
   );
 }

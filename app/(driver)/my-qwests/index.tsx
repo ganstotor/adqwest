@@ -11,6 +11,10 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import BurgerMenu from "../../../components/ui/BurgerMenu";
+import BlueButton from "../../../components/ui/BlueButton";
+import GoldButton from "../../../components/ui/GoldButton";
+import GreenButton from "../../../components/ui/GreenButton";
+import ContainerInfoMain from "../../../components/ui/ContainerInfoMain";
 import { getAuth } from "firebase/auth";
 import {
   getFirestore,
@@ -22,6 +26,7 @@ import {
   getDocs,
   DocumentReference,
 } from "firebase/firestore";
+import { BACKGROUND1_DARK_MAIN, ACCENT1_LIGHT } from "../../../constants/Colors";
 
 type DriverCampaign = {
   id: string;
@@ -213,93 +218,91 @@ const MainPage: React.FC = () => {
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: BACKGROUND1_DARK_MAIN }}>
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>Already have a case? Click "Scan Case"</Text>
         <View style={styles.topButtons}>
-          <TouchableOpacity
-            style={[styles.button, { backgroundColor: "#90EE90" }]}
+          <BlueButton
+            title="Scan Case"
             onPress={handleScanCase}
-          >
-            <Text style={styles.buttonText}>Scan Case</Text>
-          </TouchableOpacity>
+            width={200}
+            height={60}
+          />
         </View>
 
         {driverCampaigns.length === 0 ? (
           <View style={styles.emptyStateContainer}>
             <Text style={styles.emptyStateText}>Don't have a case yet? Click "Order Bags"</Text>
-            <TouchableOpacity
-              style={styles.orderBagsButton}
+            <GoldButton
+              title="Order Bags"
               onPress={() => router.push("/(driver)/available-qwests")}
-            >
-              <Text style={styles.orderBagsButtonText}>Order Bags</Text>
-            </TouchableOpacity>
+              width={200}
+              height={60}
+            />
           </View>
         ) : (
           <>
             <Text style={styles.sectionTitle}>Your Campaigns:</Text>
             {Object.entries(groupedCampaigns).map(([campaignId, group]) => (
-              <View key={campaignId} style={styles.card}>
-                <View style={styles.campaignHeader}>
-                  <Image source={{ uri: group.logo }} style={styles.logo} />
-                  <View style={styles.campaignInfo}>
-                    <Text style={styles.text}>
-                      <Text style={styles.label}>Company:</Text> {group.companyName}
-                    </Text>
-                    <Text style={styles.text}>
-                      <Text style={styles.label}>Area:</Text>{" "}
-                      {group.states.join(", ")}
-                    </Text>
-                    <Text style={styles.text}>
-                      <Text style={styles.label}>Start:</Text> {group.startDate}
-                    </Text>
-                    <Text style={styles.text}>
-                      <Text style={styles.label}>End:</Text> {group.endDate}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.caseText}>Cases</Text>
-                {/* ❗️ Теперь ниже — driver_campaigns */}
-                {group.campaigns.map((campaign, idx) => (
-                  <View key={campaign.id}>
-                    <View style={styles.driverCampaignRow}>
-                      <View style={styles.driverInfo}>
+              <View key={campaignId} style={styles.campaignWrapper}>
+                <ContainerInfoMain minHeight={200} padding={40}>
+                  <View style={styles.campaignContainer}>
+                    <View style={styles.campaignHeader}>
+                      <Image source={{ uri: group.logo }} style={styles.logo} />
+                      <View style={styles.campaignInfo}>
                         <Text style={styles.text}>
-                          <Text style={styles.label}>Status:</Text> {campaign.status}
+                          <Text style={styles.label}>Company:</Text> {group.companyName}
                         </Text>
                         <Text style={styles.text}>
-                          <Text style={styles.label}>Bags delivered:</Text>{" "}
-                          {campaign.bagsDelivered}/{campaign.bagsCount}
+                          <Text style={styles.label}>Area:</Text>{" "}
+                          {group.states.join(", ")}
                         </Text>
-                      </View>
-                      <View style={styles.driverButtons}>
-                        {campaign.status !== "on the way" && (
-                          <TouchableOpacity
-                            onPress={() => handleViewMissions(campaign.id)}
-                            style={[
-                              styles.missionButton,
-                              { backgroundColor: "#007AFF" },
-                            ]}
-                          >
-                            <Text style={styles.missionText}>📦 View Missions</Text>
-                          </TouchableOpacity>
-                        )}
-                        <TouchableOpacity
-                          onPress={() => handleDriverCampaignDetails(campaign)}
-                          style={[
-                            styles.missionButton,
-                            { backgroundColor: "#FFA500" },
-                          ]}
-                        >
-                          <Text style={styles.missionText}>📋 View Campaign</Text>
-                        </TouchableOpacity>
+                        <Text style={styles.text}>
+                          <Text style={styles.label}>Start:</Text> {group.startDate}
+                        </Text>
+                        <Text style={styles.text}>
+                          <Text style={styles.label}>End:</Text> {group.endDate}
+                        </Text>
                       </View>
                     </View>
-                    {idx !== group.campaigns.length - 1 && (
-                      <View style={styles.divider} />
-                    )}
+                    <Text style={styles.caseText}>Cases</Text>
+                    {/* ❗️ Теперь ниже — driver_campaigns */}
+                    {group.campaigns.map((campaign, idx) => (
+                      <View key={campaign.id}>
+                        <View style={styles.driverCampaignRow}>
+                          <View style={styles.driverInfo}>
+                            <Text style={styles.text}>
+                              <Text style={styles.label}>Status:</Text> {campaign.status}
+                            </Text>
+                            <Text style={styles.text}>
+                              <Text style={styles.label}>Bags delivered:</Text>{" "}
+                              {campaign.bagsDelivered}/{campaign.bagsCount}
+                            </Text>
+                          </View>
+                          <View style={styles.driverButtons}>
+                            {campaign.status !== "on the way" && (
+                              <GreenButton
+                                title="📦 View Missions"
+                                onPress={() => handleViewMissions(campaign.id)}
+                                width={150}
+                                height={50}
+                              />
+                            )}
+                            <GoldButton
+                              title="📋 View Campaign"
+                              onPress={() => handleDriverCampaignDetails(campaign)}
+                              width={150}
+                              height={50}
+                            />
+                          </View>
+                        </View>
+                        {idx !== group.campaigns.length - 1 && (
+                          <View style={styles.divider} />
+                        )}
+                      </View>
+                    ))}
                   </View>
-                ))}
+                </ContainerInfoMain>
               </View>
             ))}
           </>
@@ -317,8 +320,15 @@ export default MainPage;
 const styles = StyleSheet.create({
   container: {
     padding: 20,
-    backgroundColor: "#fff",
+    backgroundColor: BACKGROUND1_DARK_MAIN,
     alignItems: "center",
+  },
+  campaignWrapper: {
+    width: "100%",
+    marginBottom: 20,
+  },
+  campaignContainer: {
+    width: "100%",
   },
   topButtons: {
     flexDirection: "row",
@@ -329,22 +339,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     textAlign: "center",
     marginBottom: 10,
+    color: ACCENT1_LIGHT,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: "bold",
     marginVertical: 20,
-  },
-  button: {
-    marginTop: 15,
-    padding: 15,
-    borderRadius: 8,
-
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "bold",
+    color: ACCENT1_LIGHT,
   },
   card: {
     width: "100%",
@@ -402,6 +403,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 10,
     fontWeight: "bold",
+    color: ACCENT1_LIGHT,
   },
   logo: {
     width: 60,
@@ -411,17 +413,10 @@ const styles = StyleSheet.create({
   text: {
     fontSize: 16,
     marginBottom: 3,
+    color: ACCENT1_LIGHT,
   },
   label: {
     fontWeight: "bold",
-  },
-  missionButton: {
-    padding: 8,
-    borderRadius: 5,
-    marginTop: 5,
-  },
-  missionText: {
-    color: "#fff",
   },
   emptyStateContainer: {
     alignItems: 'center',
@@ -431,25 +426,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     textAlign: 'center',
     marginBottom: 20,
-    color: '#333',
-  },
-  orderBagsButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 10,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  orderBagsButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: '600',
+    color: ACCENT1_LIGHT,
   },
 });
