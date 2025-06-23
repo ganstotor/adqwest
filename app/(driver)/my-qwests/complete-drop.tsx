@@ -28,6 +28,13 @@ import {
 } from "firebase/firestore";
 import { app } from "../../../firebaseConfig";
 import stateAbbrMap from "../../../utils/stateAbbreviations";
+import {
+  BACKGROUND1_DARK_MAIN,
+  ACCENT1_LIGHT,
+} from "../../../constants/Colors";
+import GoldButton from "../../../components/ui/GoldButton";
+import BlueButton from "../../../components/ui/BlueButton";
+import ContainerInfoSimple from "../../../components/ui/ContainerInfoSimple";
 
 const db = getFirestore(app);
 
@@ -312,10 +319,13 @@ const CompleteDrop = () => {
   if (!permission?.granted) {
     return (
       <View style={styles.container}>
-        <Text>No access to camera</Text>
-        <TouchableOpacity onPress={requestPermission}>
-          <Text>Grant Permission</Text>
-        </TouchableOpacity>
+        <Text style={styles.title}>No access to camera</Text>
+        <GoldButton
+          title="Grant Permission"
+          onPress={requestPermission}
+          width={200}
+          height={50}
+        />
       </View>
     );
   }
@@ -327,34 +337,47 @@ const CompleteDrop = () => {
       </Text>
 
       {!photo ? (
-        <View style={styles.cameraContainer}>
+        <ContainerInfoSimple padding={0} style={styles.cameraContainer}>
           <CameraView style={styles.camera} ref={cameraRef} />
-        </View>
+        </ContainerInfoSimple>
       ) : (
         <View style={styles.photoPreviewContainer}>
-          <Image source={{ uri: photo.uri }} style={styles.photoPreview} />
-          <Text>Looks good?</Text>
+          <ContainerInfoSimple padding={8}>
+            <Image source={{ uri: photo.uri }} style={styles.photoPreview} />
+          </ContainerInfoSimple>
+          <Text style={styles.previewText}>Looks good?</Text>
         </View>
       )}
 
       <View style={styles.buttonContainer}>
         {!photo ? (
-          <TouchableOpacity onPress={handleTakePhoto} style={styles.button}>
-            <Text style={styles.buttonText}>Take Photo</Text>
-          </TouchableOpacity>
+          <GoldButton
+            title="Take Photo"
+            onPress={handleTakePhoto}
+            width={200}
+            height={50}
+          />
         ) : (
           <>
-            <TouchableOpacity onPress={handleRetake} style={styles.button}>
-              <Text style={styles.buttonText}>Retake</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleSubmit} style={styles.button}>
-              <Text style={styles.buttonText}>Submit</Text>
-            </TouchableOpacity>
+            <BlueButton
+              title="Retake"
+              onPress={handleRetake}
+              width={180}
+              height={60}
+              style={{ marginRight: 10 }}
+            />
+            <GoldButton
+              title="Submit"
+              onPress={handleSubmit}
+              width={180}
+              height={60}
+              style={{ marginLeft: 10 }}
+            />
           </>
         )}
       </View>
 
-      {isSubmitting && <Text>Submitting...</Text>}
+      {isSubmitting && <Text style={styles.submittingText}>Submitting...</Text>}
     </View>
   );
 };
@@ -366,20 +389,20 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: BACKGROUND1_DARK_MAIN,
     padding: 20,
   },
   title: {
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 20,
+    color: ACCENT1_LIGHT,
+    textAlign: "center",
   },
   cameraContainer: {
     width: "100%",
     height: 300,
     marginBottom: 20,
-    borderWidth: 1,
-    borderRadius: 10,
     overflow: "hidden",
   },
   camera: {
@@ -392,23 +415,22 @@ const styles = StyleSheet.create({
   photoPreview: {
     width: 200,
     height: 200,
-    borderRadius: 10,
+    borderRadius: 8,
   },
-  button: {
-    backgroundColor: "#4CAF50",
-    padding: 15,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 20,
-    minWidth: "30%",
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "bold",
+  previewText: {
+    marginTop: 10,
+    color: ACCENT1_LIGHT,
+    fontSize: 16,
   },
   buttonContainer: {
     flexDirection: "row",
-    justifyContent: "space-around",
+    justifyContent: "center",
     width: "100%",
+    marginTop: 20,
+  },
+  submittingText: {
+    marginTop: 20,
+    color: ACCENT1_LIGHT,
+    fontSize: 16,
   },
 });
