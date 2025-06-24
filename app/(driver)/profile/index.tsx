@@ -24,7 +24,10 @@ import { GeoPoint } from "firebase/firestore";
 import Icon from "react-native-vector-icons/Ionicons";
 import { getZipList } from "../../../utils/zipUtils";
 import GoldButton from '../../../components/ui/GoldButton';
-import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
+import Svg, { Defs, LinearGradient, Rect, Stop, RadialGradient } from "react-native-svg";
+import CustomInput from '../../../components/ui/CustomInput';
+import BlueButton from '../../../components/ui/BlueButton';
+import { BACKGROUND1_DARK_MAIN, ACCENT1_LIGHT, ACCENT2_DARK } from '../../../constants/Colors';
 
 type UserData = {
   name: string;
@@ -449,7 +452,7 @@ const ProfileScreen = () => {
                   style={styles.closeButton}
                   onPress={() => setShowVerificationModal(false)}
                 >
-                  <Icon name="close" size={24} color="#000" />
+                  <Icon name="close" size={24} color={ACCENT2_DARK} />
                 </TouchableOpacity>
               </View>
 
@@ -464,31 +467,71 @@ const ProfileScreen = () => {
                     Select delivery apps you use:
                   </Text>
                   <View style={styles.appsContainer}>
-                    {deliveryApps.map((app) => (
-                      <TouchableOpacity
-                        key={app.id}
-                        style={[
-                          styles.appButton,
-                          selectedApps.includes(app.id) &&
-                            styles.appButtonSelected,
-                        ]}
-                        onPress={() => toggleApp(app.id)}
-                      >
-                        <Text
-                          style={[
-                            styles.appButtonText,
-                            selectedApps.includes(app.id) &&
-                              styles.appButtonTextSelected,
-                          ]}
+                    {deliveryApps.map((app) => {
+                      const isSelected = selectedApps.includes(app.id);
+                      return (
+                        <TouchableOpacity
+                          key={app.id}
+                          style={{
+                            borderWidth: 2,
+                            borderColor: ACCENT2_DARK,
+                            borderRadius: 12,
+                            margin: 6,
+                            minWidth: 120,
+                            backgroundColor: 'transparent',
+                            overflow: 'hidden',
+                          }}
+                          onPress={() => toggleApp(app.id)}
                         >
-                          {app.name}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
+                          {isSelected && (
+                            <Svg
+                              width="100%"
+                              height="100%"
+                              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                              viewBox="0 0 120 48"
+                              fill="none"
+                            >
+                              <Defs>
+                                <RadialGradient
+                                  id={`app-gradient-${app.id}`}
+                                  cx="0.5"
+                                  cy="0.5"
+                                  r="0.5"
+                                  gradientUnits="objectBoundingBox"
+                                >
+                                  <Stop offset="0" stopColor="#106D68" />
+                                  <Stop offset="1" stopColor="#00030F" />
+                                </RadialGradient>
+                              </Defs>
+                              <Rect
+                                x="0"
+                                y="0"
+                                width="120"
+                                height="48"
+                                rx="12"
+                                fill={`url(#app-gradient-${app.id})`}
+                              />
+                            </Svg>
+                          )}
+                          <Text
+                            style={{
+                              color: ACCENT1_LIGHT,
+                              fontWeight: isSelected ? 'bold' : 'normal',
+                              fontSize: 16,
+                              textAlign: 'center',
+                              padding: 12,
+                              zIndex: 1,
+                            }}
+                          >
+                            {app.name}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </View>
                   {selectedApps.includes("others") && (
-                    <TextInput
-                      style={styles.otherAppInput}
+                    <CustomInput
+                      label="Other delivery app name"
                       placeholder="Enter other delivery app name"
                       value={otherAppName}
                       onChangeText={(text) => {
@@ -499,30 +542,31 @@ const ProfileScreen = () => {
                           });
                         }
                       }}
+                      containerStyle={{ marginBottom: 4 }}
                     />
                   )}
-                  {selectedApps.includes("no_delivery") ? (
-                    <Text style={styles.errorText}>
-                      You cannot use this application
-                    </Text>
-                  ) : (
-                    <TouchableOpacity
-                      style={[
-                        styles.modalButton,
-                        (selectedApps.length === 0 ||
-                          (selectedApps.includes("others") && !otherAppName)) &&
-                          styles.modalButtonDisabled,
-                      ]}
-                      onPress={() => setVerificationStep(2)}
-                      disabled={
+                  <View style={{ alignItems: 'center', marginTop: 10 }}>
+                    <GoldButton
+                      title="Next"
+                      onPress={
                         selectedApps.length === 0 ||
                         (selectedApps.includes("others") && !otherAppName) ||
                         selectedApps.includes("no_delivery")
+                          ? () => {}
+                          : () => setVerificationStep(2)
                       }
-                    >
-                      <Text style={styles.modalButtonText}>Next</Text>
-                    </TouchableOpacity>
-                  )}
+                      width={150}
+                      height={50}
+                      style={{
+                        opacity:
+                          selectedApps.length === 0 ||
+                          (selectedApps.includes("others") && !otherAppName) ||
+                          selectedApps.includes("no_delivery")
+                            ? 0.5
+                            : 1,
+                      }}
+                    />
+                  </View>
                 </>
               )}
 
@@ -532,14 +576,19 @@ const ProfileScreen = () => {
                     Select your location and radius:
                   </Text>
                   <View style={styles.radiusContainer}>
-                    <Text>Delivery Radius (miles):</Text>
-                    <TextInput
-                      style={styles.radiusInput}
-                      value={radius}
-                      onChangeText={handleRadiusChange}
-                      keyboardType="numeric"
-                      placeholder="Enter radius (max 50)"
-                    />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                      <Text style={{ color: ACCENT1_LIGHT, fontSize: 16, marginRight: 10, minWidth: 120 }}>
+                        Delivery Radius:
+                      </Text>
+                      <CustomInput
+                        label=""
+                        value={radius}
+                        onChangeText={handleRadiusChange}
+                        keyboardType="numeric"
+                        placeholder="Enter address"
+                        containerStyle={{ marginBottom: 0, width: 120 }}
+                      />
+                    </View>
                   </View>
                   <View style={styles.mapContainer}>
                     <MapView
@@ -580,23 +629,21 @@ const ProfileScreen = () => {
                       )}
                     </MapView>
                   </View>
-                  <View style={styles.buttonRow}>
-                    <TouchableOpacity
-                      style={styles.modalButton}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', marginTop: 10 }}>
+                    <BlueButton
+                      title="Back"
                       onPress={() => setVerificationStep(1)}
-                    >
-                      <Text style={styles.modalButtonText}>Back</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.modalButton,
-                        (!savedLocation || !radius) && styles.modalButtonDisabled,
-                      ]}
-                      onPress={() => setVerificationStep(3)}
-                      disabled={!savedLocation || !radius}
-                    >
-                      <Text style={styles.modalButtonText}>Next</Text>
-                    </TouchableOpacity>
+                      width={150}
+                      height={50}
+                      style={{ marginRight: 10 }}
+                    />
+                    <GoldButton
+                      title="Next"
+                      onPress={!savedLocation || !radius ? () => {} : () => setVerificationStep(3)}
+                      width={150}
+                      height={50}
+                      style={{ opacity: !savedLocation || !radius ? 0.5 : 1 }}
+                    />
                   </View>
                 </>
               )}
@@ -641,22 +688,20 @@ const ProfileScreen = () => {
                     </TouchableOpacity>
                   </ScrollView>
                   <View style={styles.buttonRow}>
-                    <TouchableOpacity
-                      style={styles.modalButton}
+                    <BlueButton
+                      title="Back"
                       onPress={() => setVerificationStep(2)}
-                    >
-                      <Text style={styles.modalButtonText}>Back</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.modalButton,
-                        screenshots.length === 0 && styles.modalButtonDisabled,
-                      ]}
-                      onPress={handleVerificationSubmit}
-                      disabled={screenshots.length === 0}
-                    >
-                      <Text style={styles.modalButtonText}>Submit</Text>
-                    </TouchableOpacity>
+                      width={150}
+                      height={50}
+                      style={{ marginRight: 10 }}
+                    />
+                    <GoldButton
+                      title="Submit"
+                      onPress={screenshots.length === 0 ? () => {} : handleVerificationSubmit}
+                      width={150}
+                      height={50}
+                      style={{ opacity: screenshots.length === 0 ? 0.5 : 1 }}
+                    />
                   </View>
                 </>
               )}
@@ -819,11 +864,13 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   modalContent: {
-    backgroundColor: "white",
-    padding: 20,
+    backgroundColor: BACKGROUND1_DARK_MAIN,
+    padding: 10,
     borderRadius: 10,
     width: "90%",
     maxHeight: "90%",
+    borderWidth: 2,
+    borderColor: ACCENT2_DARK,
   },
   modalHeader: {
     flexDirection: "row",
@@ -837,6 +884,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "bold",
     textAlign: "center",
+    color: ACCENT1_LIGHT,
   },
   closeButton: {
     position: "absolute",
@@ -848,13 +896,14 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 20,
     textAlign: "center",
+    color: ACCENT1_LIGHT,
   },
   appsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
+    gap: 6,
     justifyContent: "center",
-    marginBottom: 20,
+    marginBottom: 10,
   },
   appButton: {
     padding: 10,
@@ -893,7 +942,7 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 20,
+    marginTop: 10,
   },
   mapContainer: {
     height: 300,
@@ -907,7 +956,7 @@ const styles = StyleSheet.create({
   radiusContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: 4,
   },
   radiusInput: {
     borderWidth: 1,
@@ -1050,7 +1099,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   errorText: {
-    color: "#dc3545",
+    color: ACCENT1_LIGHT,
     fontSize: 14,
     marginTop: 5,
     textAlign: "center",

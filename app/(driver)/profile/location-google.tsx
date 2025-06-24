@@ -21,6 +21,11 @@ import {
   getStateFromCoords,
   findNearbyStates,
 } from "../../../utils/geo";
+import CustomInput from '../../../components/ui/CustomInput';
+import BlueButton from '../../../components/ui/BlueButton';
+import GoldButton from '../../../components/ui/GoldButton';
+import { BACKGROUND1_DARK_MAIN, ACCENT1_LIGHT } from '../../../constants/Colors';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 type GeoFeature = {
   type: string;
@@ -363,18 +368,25 @@ export default function ZipMapScreen() {
 
   return (
     <View style={styles.container}>
+      <Svg height="100%" width="100%" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: -1 }}>
+        <Defs>
+          <LinearGradient id="bgGradient" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0%" stopColor={BACKGROUND1_DARK_MAIN} />
+            <Stop offset="100%" stopColor={BACKGROUND1_DARK_MAIN} />
+          </LinearGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#bgGradient)" />
+      </Svg>
       {showPopup && (
         <View style={styles.popup}>
           <View
             style={{
-              flexDirection: "row",
-              alignItems: "center",
+              flexDirection: "column",
               marginBottom: 10,
             }}
           >
-            <Text style={{ marginRight: 8 }}>Radius (miles):</Text>
-            <TextInput
-              style={[styles.input, { width: 80 }]}
+            <CustomInput
+              label="Radius (miles):"
               value={newRadius}
               onChangeText={(text) => {
                 const num = parseInt(text, 10);
@@ -387,28 +399,31 @@ export default function ZipMapScreen() {
                 }
               }}
               keyboardType="numeric"
+              containerStyle={{ marginBottom: 5 }}
             />
-            <TouchableOpacity
-              style={{
-                backgroundColor: "#007BFF",
-                padding: 8,
-                marginLeft: 10,
-                borderRadius: 5,
-              }}
-              onPress={saveRadiusToFirestore}
-            >
-              <Text style={{ color: "white" }}>Apply</Text>
-            </TouchableOpacity>
+            <GoldButton 
+              title="Save Changes" 
+              onPress={saveRadiusToFirestore} 
+              width={200}
+              height={50}
+              style={{ alignSelf: 'flex-start' }} 
+            />
           </View>
           <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter ZIP"
+            <CustomInput
+              label="Enter ZIP"
               value={zipInput}
               onChangeText={setZipInput}
               keyboardType="numeric"
+              containerStyle={{ marginBottom: 5 }}
             />
-            <Button title="Add" onPress={handleAddZip} />
+            <GoldButton 
+              title="Add" 
+              onPress={handleAddZip} 
+              width={200}
+              height={50}
+              style={{ alignSelf: 'flex-start' }} 
+            />
           </View>
           <View style={styles.zipScrollList}>
             <ScrollView
@@ -438,10 +453,11 @@ export default function ZipMapScreen() {
           flexDirection: "row",
           justifyContent: "space-between",
           marginBottom: 10,
+          paddingRight: 16,
         }}
       >
-        <TouchableOpacity
-          style={styles.smallButton}
+        <BlueButton
+          title="Clear"
           onPress={async () => {
             setSavedZips([]);
             setFeatures([]);
@@ -458,17 +474,18 @@ export default function ZipMapScreen() {
               );
             }
           }}
-        >
-          <Text style={styles.smallButtonText}>Clear</Text>
-        </TouchableOpacity>
+          width={180}
+          height={50}
+          style={{ alignSelf: 'flex-start'}}
+        />
         <TouchableOpacity
-          style={styles.iconButton}
+          style={{ marginLeft: 8, justifyContent: 'center', alignItems: 'center' }}
           onPress={() => setShowPopup(!showPopup)}
         >
           <Icon
             name={showPopup ? "close" : "options"}
             size={30}
-            color="#007BFF"
+            color={ACCENT1_LIGHT}
           />
         </TouchableOpacity>
       </View>
@@ -538,24 +555,17 @@ export default function ZipMapScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 10,
   },
   inputRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: "column",
     marginBottom: 10,
-    gap: 10,
-  },
-  input: {
-    flex: 1,
-    borderBottomWidth: 1,
-    borderColor: "#ccc",
-    padding: 6,
   },
   zipItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f0f0f0",
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "#7EEDFA",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 20,
@@ -563,17 +573,11 @@ const styles = StyleSheet.create({
   zipText: {
     marginRight: 6,
     fontSize: 14,
+    color: ACCENT1_LIGHT,
   },
   map: {
     flex: 1,
     borderRadius: 12,
-  },
-  iconButton: {
-    right: 20,
-    backgroundColor: "white",
-    padding: 8,
-    borderRadius: 20,
-    elevation: 5,
   },
 
   popup: {
@@ -582,7 +586,7 @@ const styles = StyleSheet.create({
     height: "90%",
     right: 10,
     left: 10,
-    backgroundColor: "white",
+    backgroundColor: BACKGROUND1_DARK_MAIN,
     borderRadius: 10,
     padding: 15,
     elevation: 5,
@@ -595,19 +599,5 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 8,
     marginBottom: 10,
-  },
-
-  smallButton: {
-    backgroundColor: "#007BFF",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  smallButtonText: {
-    color: "white",
-    fontSize: 14,
-    fontWeight: "500",
   },
 });
