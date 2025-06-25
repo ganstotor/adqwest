@@ -45,6 +45,7 @@ type DriverCampaign = {
   bagsDelivered: number;
   startDate: string;
   endDate: string;
+  hasActiveMissions?: boolean;
 };
 
 type CampaignDoc = {
@@ -95,7 +96,8 @@ const Home = () => {
 
         const q = query(
           collection(db, "driver_campaigns"),
-          where("userDriverId", "==", userDriverRef)
+          where("userDriverId", "==", userDriverRef),
+          where("status", "==", "active")
         );
         const snapshot = await getDocs(q);
 
@@ -121,6 +123,15 @@ const Home = () => {
 
             const adData = adSnap.data() as AdDoc;
 
+            // Проверяем наличие активных миссий для этой кампании
+            const missionsQuery = query(
+              collection(db, "driver_missions"),
+              where("driverCampaignId", "==", docSnap.ref),
+              where("status", "==", "active")
+            );
+            const missionsSnapshot = await getDocs(missionsQuery);
+            const hasActiveMissions = !missionsSnapshot.empty;
+
             return {
               id: docSnap.id,
               campaignId: campaignRef.id,
@@ -136,6 +147,7 @@ const Home = () => {
                 campaignData.startDate?.toDate?.().toLocaleDateString() || "",
               endDate:
                 campaignData.endDate?.toDate?.().toLocaleDateString() || "",
+              hasActiveMissions,
             };
           })
         );
@@ -178,6 +190,36 @@ const Home = () => {
       pathname: "/my-qwests/scan-case",
       params: { campaignId },
     });
+  };
+
+  const handleCompleteDrop = async (campaignId: string) => {
+    try {
+      // Находим первую активную миссию для этой кампании
+      const driverCampaignRef = doc(db, "driver_campaigns", campaignId);
+      const missionsQuery = query(
+        collection(db, "driver_missions"),
+        where("driverCampaignId", "==", driverCampaignRef),
+        where("status", "==", "active")
+      );
+      const missionsSnapshot = await getDocs(missionsQuery);
+
+      if (!missionsSnapshot.empty) {
+        // Берем первую активную миссию
+        const firstActiveMission = missionsSnapshot.docs[0];
+        const missionId = firstActiveMission.id;
+
+        // Переходим сразу на страницу complete-drop с ID миссии
+        router.push({
+          pathname: "/my-qwests/complete-drop",
+          params: { missionId },
+        });
+      } else {
+        // Если активных миссий нет, показываем сообщение
+        console.log("No active missions found for this campaign");
+      }
+    } catch (error) {
+      console.error("Error finding active mission:", error);
+    }
   };
 
   const handleOrderBags = () => {
@@ -314,8 +356,8 @@ const Home = () => {
             />
           </View>
 
-          {/* Заголовок Your Campaigns */}
-          <Text style={styles.campaignsTitle}>Your Campaigns</Text>
+          {/* Заголовок Active Your Campaigns */}
+          <Text style={styles.campaignsTitle}>Your Active Campaigns</Text>
 
           {/* Отображение кампаний */}
           {driverCampaigns.length > 0 ? (
@@ -361,14 +403,23 @@ const Home = () => {
                       </View>
                     </View>
 
-                    {/* Кнопка Scan Bag */}
+                    {/* Кнопка Scan Bag или Complete Drop */}
                     <View style={styles.scanBagButtonContainer}>
-                      <GoldButton
-                        title="Scan Bag"
-                        onPress={() => handleScanBag(campaign.id)}
-                        width={200}
-                        height={60}
-                      />
+                      {campaign.hasActiveMissions ? (
+                        <GoldButton
+                          title="Complete Drop"
+                          onPress={() => handleCompleteDrop(campaign.id)}
+                          width={200}
+                          height={60}
+                        />
+                      ) : (
+                        <GoldButton
+                          title="Scan Bag"
+                          onPress={() => handleScanBag(campaign.id)}
+                          width={200}
+                          height={60}
+                        />
+                      )}
                     </View>
                   </View>
                 </ContainerInfoMain>
