@@ -406,19 +406,29 @@ const Home = () => {
                     {/* Кнопка Scan Bag или Complete Drop */}
                     <View style={styles.scanBagButtonContainer}>
                       {campaign.hasActiveMissions ? (
-                        <GoldButton
-                          title="Complete Drop"
-                          onPress={() => handleCompleteDrop(campaign.id)}
-                          width={200}
-                          height={60}
-                        />
+                        <>
+                          <Text style={styles.buttonInstructionText}>
+                            to complete the qwest click
+                          </Text>
+                          <GoldButton
+                            title="Complete Drop"
+                            onPress={() => handleCompleteDrop(campaign.id)}
+                            width={200}
+                            height={60}
+                          />
+                        </>
                       ) : (
-                        <GoldButton
-                          title="Scan Bag"
-                          onPress={() => handleScanBag(campaign.id)}
-                          width={200}
-                          height={60}
-                        />
+                        <>
+                          <Text style={styles.buttonInstructionText}>
+                            to start qwest click
+                          </Text>
+                          <GoldButton
+                            title="Scan Bag"
+                            onPress={() => handleScanBag(campaign.id)}
+                            width={200}
+                            height={60}
+                          />
+                        </>
                       )}
                     </View>
                   </View>
@@ -651,6 +661,15 @@ const styles = StyleSheet.create({
     fontWeight: "300",
     lineHeight: 20,
     letterSpacing: 0.64,
+  },
+  buttonInstructionText: {
+    color: "#FDEA35",
+    fontFamily: "Kantumruy Pro",
+    fontSize: 12,
+    fontStyle: "normal",
+    fontWeight: "300",
+    lineHeight: 16,
+    marginBottom: 4,
   },
 });
 
