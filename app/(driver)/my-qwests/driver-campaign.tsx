@@ -15,6 +15,11 @@ import {
   getDoc,
   updateDoc,
   DocumentReference,
+  collection,
+  getDocs,
+  query,
+  where,
+  GeoPoint,
 } from "firebase/firestore";
 import {
   BACKGROUND1_DARK_MAIN,
@@ -66,6 +71,14 @@ type ScreenData = {
   driverCampaignId: string;
 };
 
+type DriverMission = {
+  id: string;
+  recipientName: string;
+  startMission: GeoPoint;
+  endMission: GeoPoint;
+  status: "active" | "completed";
+};
+
 const calculateTargetObjective = (bagsCount: number): number => {
   if (bagsCount === 25) return 23;
   if (bagsCount === 50) return 46;
@@ -89,6 +102,8 @@ const DriverCampaignScreen: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [showCompletePopup, setShowCompletePopup] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
+  const [showMenuPopup, setShowMenuPopup] = useState(false);
+  const [missions, setMissions] = useState<DriverMission[]>([]);
 
   const fetchData = async () => {
     if (!driverCampaignId) return;
@@ -139,6 +154,40 @@ const DriverCampaignScreen: React.FC = () => {
     fetchData();
   }, [driverCampaignId]);
 
+  useEffect(() => {
+    if (!driverCampaignId) return;
+    const loadMissions = async () => {
+      try {
+        const driverCampaignRef = doc(db, "driver_campaigns", driverCampaignId);
+        const q = query(
+          collection(db, "driver_missions"),
+          where("driverCampaignId", "==", driverCampaignRef)
+        );
+        const snapshot = await getDocs(q);
+        const items: DriverMission[] = snapshot.docs.map((docSnap) => {
+          const data = docSnap.data();
+          return {
+            id: docSnap.id,
+            recipientName: data.recipientName,
+            startMission: data.startMission,
+            endMission: data.endMission,
+            status: data.status,
+          };
+        });
+        // Сортируем миссии: сначала активные, потом завершенные
+        const sortedMissions = items.sort((a, b) => {
+          if (a.status === "active" && b.status !== "active") return -1;
+          if (a.status !== "active" && b.status === "active") return 1;
+          return 0;
+        });
+        setMissions(sortedMissions);
+      } catch (error) {
+        // Ошибки можно обработать по-другому, если нужно
+      }
+    };
+    loadMissions();
+  }, [driverCampaignId]);
+
   if (loading || !data || !driverCampaignData) {
     return (
       <View style={styles.loadingContainer}>
@@ -169,13 +218,51 @@ const DriverCampaignScreen: React.FC = () => {
     });
   };
 
+  const renderMission = (item: DriverMission) => (
+    <ContainerInfoSimple padding={12} style={{ marginBottom: 16 }} key={item.id}>
+      {item.startMission ? (
+        <Text style={styles.missionText}>
+          📍 From: {item.startMission.latitude.toFixed(4)}, {item.startMission.longitude.toFixed(4)}
+        </Text>
+      ) : (
+        <Text style={styles.missionText}>📍 From: Unknown location</Text>
+      )}
+      {item.endMission ? (
+        <Text style={styles.missionText}>
+          🎯 To: {item.endMission.latitude.toFixed(4)}, {item.endMission.longitude.toFixed(4)}
+        </Text>
+      ) : (
+        <Text style={styles.missionText}>🎯 To: Unknown location</Text>
+      )}
+      <Text style={styles.missionText}>👤 Recipient: {item.recipientName}</Text>
+      {item.status === "active" ? (
+        <GoldButton
+          title="Complete Drop"
+          onPress={() =>
+            router.push({
+              pathname: "/my-qwests/complete-drop",
+              params: { missionId: item.id },
+            })
+          }
+          width={200}
+          height={50}
+          style={{ marginTop: 8 }}
+        />
+      ) : (
+        <Text style={styles.completedText}>✅ Completed</Text>
+      )}
+    </ContainerInfoSimple>
+  );
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <ContainerInfoMain minHeight={200} padding={30}>
         <View style={styles.headerContainer}>
           <Image source={{ uri: data.logo }} style={styles.logo} />
           <View style={styles.headerTextContainer}>
-            <Text style={styles.title}>{data.companyName}</Text>
+            <View style={styles.titleRow}>
+              <Text style={styles.title}>{data.companyName}</Text>
+            </View>
             <Text style={styles.text}>
               <Text style={styles.label}>Area:</Text> {data.area}
             </Text>
@@ -186,6 +273,12 @@ const DriverCampaignScreen: React.FC = () => {
               <Text style={styles.label}>Status:</Text> {data.status}
             </Text>
           </View>
+          <TouchableOpacity
+            style={styles.menuButtonAbsolute}
+            onPress={() => setShowMenuPopup(true)}
+          >
+            <Text style={styles.menuButtonText}>⋮</Text>
+          </TouchableOpacity>
         </View>
 
         <Text style={styles.text}>
@@ -237,16 +330,59 @@ const DriverCampaignScreen: React.FC = () => {
         )}
       </ContainerInfoMain>
 
-      <BlueButton
-        title="Complete Case"
-        onPress={() => setShowCompletePopup(true)}
-        width={350}
-        height={70}
-        style={{ marginTop: 20 }}
-      />
+      {showMenuPopup && (
+        <View style={styles.menuPopup}>
+          <View style={styles.menuPopupContent}>
+            <TouchableOpacity
+              style={styles.closeIcon}
+              onPress={() => setShowMenuPopup(false)}
+            >
+              <Text style={styles.closeIconText}>×</Text>
+            </TouchableOpacity>
+            <BlueButton
+              title="Complete Case"
+              onPress={() => {
+                setShowMenuPopup(false);
+                setShowCompletePopup(true);
+              }}
+              width={300}
+              height={60}
+              style={{ marginBottom: 15 }}
+            />
+
+            <GoldButton
+              title="Bag an item"
+              onPress={() => {
+                setShowMenuPopup(false);
+                handleNavigateScanBag();
+              }}
+              width={300}
+              height={60}
+              style={{ marginBottom: 15 }}
+            />
+
+            <GreenButton
+              title="Reassign campaign"
+              onPress={() => {
+                setShowMenuPopup(false);
+                handleNavigateReassign();
+              }}
+              width={300}
+              height={60}
+              style={{ marginBottom: 15 }}
+            />
+          </View>
+        </View>
+      )}
 
       {showCompletePopup && (
         <View style={styles.popup}>
+          <TouchableOpacity
+            style={styles.closeIcon}
+            onPress={() => setShowCompletePopup(false)}
+          >
+            <Text style={styles.closeIconText}>×</Text>
+          </TouchableOpacity>
           <Text style={styles.popupText}>
             {bagsDelivered < targetObjective
               ? `If you complete the mission now, the amount of earnings will be halved.\nUncompleted missions will go to the failed status.\n\nYou'll earn $${(
@@ -276,30 +412,16 @@ const DriverCampaignScreen: React.FC = () => {
             height={70}
             style={{ marginTop: 15 }}
           />
-          <TouchableOpacity
-            style={[styles.cancelButton, { marginTop: 10 }]}
-            onPress={() => setShowCompletePopup(false)}
-          >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
         </View>
       )}
 
-      <GoldButton
-        title="Bag an item"
-        onPress={handleNavigateScanBag}
-        width={350}
-        height={70}
-        style={{ marginTop: 20 }}
-      />
-
-      <GreenButton
-        title="Reassign campaign"
-        onPress={handleNavigateReassign}
-        width={350}
-        height={70}
-        style={{ marginTop: 20 }}
-      />
+      {/* Миссии под кампанией */}
+      <Text style={styles.missionsTitle}>Qwests</Text>
+      {missions.length === 0 ? (
+        <Text style={styles.missionText}>No Qwests found for this campaign.</Text>
+      ) : (
+        missions.map(renderMission)
+      )}
     </ScrollView>
   );
 };
@@ -388,5 +510,73 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: "#fff",
     fontWeight: "bold",
+  },
+  menuButton: {
+    padding: 5,
+    marginLeft: 10,
+  },
+  menuButtonAbsolute: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    padding: 10,
+    zIndex: 2,
+  },
+  menuButtonText: {
+    fontSize: 20,
+    color: ACCENT1_LIGHT,
+  },
+  menuPopup: {
+    backgroundColor: BACKGROUND1_DARK_MAIN,
+    padding: 20,
+    borderRadius: 10,
+    elevation: 10, // для Android
+    zIndex: 10, // для iOS
+    position: "absolute",
+    top: "30%",
+    left: "10%",
+    right: "10%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: ACCENT1_LIGHT,
+  },
+  menuPopupContent: {
+    // Add any necessary styles for the menu popup content
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  closeIcon: {
+    alignSelf: "flex-end",
+    zIndex: 10,
+    padding: 5,
+  },
+  closeIconText: {
+    fontSize: 28,
+    color: ACCENT1_LIGHT,
+    fontWeight: "bold",
+  },
+  missionsTitle: {
+    color: ACCENT1_LIGHT,
+    fontSize: 22,
+    fontWeight: "bold",
+    marginTop: 32,
+    marginBottom: 12,
+  },
+  missionText: {
+    color: ACCENT1_LIGHT,
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  completedText: {
+    color: "#4CAF50",
+    fontSize: 16,
+    fontWeight: "bold",
+    marginTop: 8,
   },
 });

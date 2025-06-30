@@ -178,13 +178,6 @@ const MainPage: React.FC = () => {
     router.push("/my-qwests/scan-case");
   };
 
-  const handleViewMissions = (campaignId: string) => {
-    router.push({
-      pathname: "/my-qwests/missions",
-      params: { driverCampaignId: campaignId },
-    });
-  };
-
   const handleDriverCampaignDetails = (campaign: DriverCampaign) => {
     router.push({
       pathname: "/my-qwests/driver-campaign",
@@ -280,14 +273,6 @@ const MainPage: React.FC = () => {
                             </Text>
                           </View>
                           <View style={styles.driverButtons}>
-                            {campaign.status !== "on the way" && (
-                              <GreenButton
-                                title="📦 View Missions"
-                                onPress={() => handleViewMissions(campaign.id)}
-                                width={150}
-                                height={50}
-                              />
-                            )}
                             <GoldButton
                               title="📋 View Campaign"
                               onPress={() => handleDriverCampaignDetails(campaign)}
